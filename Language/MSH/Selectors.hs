@@ -1,8 +1,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses, KindSignatures #-}
-{-# LANGUAGE Rank2Types, FlexibleInstances, FunctionalDependencies #-}
+{-# LANGUAGE Rank2Types, FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DataKinds, FlexibleContexts #-}
 
 module Language.MSH.Selectors where
 
