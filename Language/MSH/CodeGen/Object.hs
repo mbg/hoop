@@ -32,7 +32,7 @@ objectCtrCxt name vars s d = do
         tyname = mkName $ name ++ "M"
         ty     = appN (ConT tyname) vars
         tyvars = map (VarT . mkName) vars
-    return [ClassP clname ([VarT s, VarT d, ty] ++ tyvars)]
+    return [foldl AppT (ConT clname) ([VarT s, VarT d, ty] ++ tyvars)]
 
 dataCtr :: String -> [String] -> Q Con
 dataCtr name vars = do

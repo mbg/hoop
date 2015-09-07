@@ -61,8 +61,8 @@ library
   
   -- Other library packages from which modules are imported.
   build-depends:       
-    base >=4.7 && <4.8, 
-    template-haskell >=2.9 && <2.10, 
+    base >=4.7, 
+    template-haskell >=2.9, 
     haskell-src-exts >= 1.16,
     haskell-src-meta >= 0.6,
     parsec >=3.1.9,

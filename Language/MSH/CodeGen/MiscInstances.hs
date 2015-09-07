@@ -6,8 +6,10 @@ import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
 import Language.MSH.StateDecl
+import Language.MSH.Constructor
 import Language.MSH.CodeGen.Interop
 import Language.MSH.CodeGen.Shared
+import Language.MSH.CodeGen.NewInstance
 
 {-
     Misc. Instances
@@ -56,8 +58,9 @@ genCastInstance (StateDecl {
         return $ [InstanceD [] (AppT (AppT ct ty) (parseType p)) []]
 
 
-genMiscInstances :: StateDecl -> Dec -> Q [Dec]
-genMiscInstances decl dec = do
+genMiscInstances :: StateDecl -> Dec -> StateCtr -> Q [Dec]
+genMiscInstances decl dec ctr = do
     d  <- genDataInstance decl dec
+    n  <- genNewInstance ctr decl
     cs <- genCastInstance decl
-    return $ d : cs
+    return $ d : n : cs

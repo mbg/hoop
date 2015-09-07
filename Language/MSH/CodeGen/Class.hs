@@ -8,6 +8,7 @@ import Language.Haskell.TH.Syntax
 import Language.MSH.StateDecl
 import Language.MSH.CodeGen.Shared
 import Language.MSH.CodeGen.Interop
+import Language.MSH.CodeGen.Inheritance 
 
 {-
     Type class
@@ -21,10 +22,19 @@ data SCV = SCV {
 
 -- | Generates the context for the type class.
 genClassContext :: [String] -> Maybe Type -> SCV -> Q Cxt
-genClassContext vars Nothing (SCV { scvObject = o, scvMonad = m }) = do
-    return [ClassP (mkName "Object") [appN (VarT o) vars, VarT m]]
+genClassContext vars Nothing (SCV o s m) = do
+    --return [foldl AppT (ConT $ mkName "Monad") [VarT m]]
+    let
+        cn = ConT $ mkName "Object"
+        fa = appN (VarT o) vars
+        --sa = foldl AppT (ConT $ mkName "Selector") [appN (VarT o) vars, appN (VarT s) vars, VarT m, VarT $ mkName "r"]
+        sa = appN (VarT s) vars
+        ma = VarT m
+        --ma = ConT $ mkName "Identity"
+    return [foldl AppT cn [fa, sa, ma]]
+    --return [foldl AppT (ConT $ mkName "Object") [appN (VarT o) vars, appN (VarT s) vars, VarT m]]
 genClassContext vars (Just p) (SCV o s m) = do
-    return [ClassP pcname vars]
+    return [foldl AppT (ConT pcname) vars]
         where
             (Name pn _) = parentName p
             pcname = mkName $ occString pn ++ "Like"
@@ -40,7 +50,7 @@ genInvokeDecl tyvars c (SCV o s m) = do
         name  = mkName $ "_" ++ c ++ "_invoke"
         cname = mkName $ c ++ "Like"
         base  = AppT (AppT (ConT (mkName "StateT")) (appN (VarT s) tyvars)) (VarT m)
-        ctx   = [ClassP cname ([VarT o, VarT d', base] ++ [VarT $ mkName n | n <- tyvars])]
+        ctx   = [foldl AppT (ConT cname) ([VarT o, VarT d', base] ++ [VarT $ mkName n | n <- tyvars])]
         ovs   = appN (VarT o) tyvars
         ovs'  = appN (VarT o') tyvars
         sigma = ovs' `arr` (ovs' `arr` AppT base (tuple [VarT r, ovs'])) `arr` ovs `arr` AppT (VarT m) (tuple [VarT r, ovs, ovs']) 
@@ -54,7 +64,8 @@ setterName :: String -> String
 setterName n = "_set_" ++ n
 
 fieldType :: Type -> Type -> Name -> Type -> Type
-fieldType ovs svs m ft = AppT (AppT (AppT (AppT (ConT (mkName "Field")) ovs) svs) (VarT m)) ft
+fieldType ovs svs m ft = 
+    foldl AppT (ConT (mkName "Selector")) [PromotedT (mkName "Field"), ovs, svs, (VarT m), ft ]
 
 genModDeclsFor :: SCV -> [String] -> StateMemberDecl -> Q [Dec]
 genModDeclsFor (SCV o s m) vars (StateDataDecl field _ typ) = do
@@ -92,11 +103,17 @@ splitMethodType (AppT (AppT ArrowT arg) ret) = (arg : args, ret')
         (args,ret') = splitMethodType ret 
 splitMethodType rt = ([],rt)
 
-methodType :: Type -> Type -> Name -> [Type] -> Type -> Type 
-methodType ovs svs m args rt = AppT (AppT (AppT (AppT (AppT (ConT (mkName "Selector")) ovs) svs) (VarT m)) (tuple args)) rt
+ 
 
-genMethodDecls' :: SCV -> [String] -> Name -> Type -> Q [Dec]
-genMethodDecls' (SCV o s m) vars name ty = do
+methodType :: Type -> Type -> Name -> [Type] -> Type -> Type 
+methodType ovs svs m args rt = parameterise args st
+    where
+        st = foldl AppT (ConT (mkName "Selector")) [PromotedT (mkName "Method"), ovs, svs, VarT m, rt]
+
+
+
+genMethodDecls' :: StateEnv -> Maybe String -> SCV -> [String] -> Name -> Type -> Q [Dec]
+genMethodDecls' env mp (SCV o s m) vars name ty = do
     let
         ovs      = appN (VarT o) vars
         svs      = appN (VarT s) vars
@@ -111,25 +128,28 @@ genMethodDecls' (SCV o s m) vars name ty = do
         (args,ret) = splitMethodType ty
         mty      = methodType ovs svs m args ret 
         method   = SigD name mty
-    return [external, internal, method]
+    ov <- isInherited env mp name
+    if ov then return []
+    else return [external, internal, method]
 
-genMethodDecls :: SCV -> [String] -> Dec -> Q [Dec]
-genMethodDecls scv vars (SigD name ty) = 
-    genMethodDecls' scv vars name ty
-genMethodDecls _ _ _ = return []
+genMethodDecls :: StateEnv -> Maybe String -> SCV -> [String] -> Dec -> Q [Dec]
+genMethodDecls env mp scv vars (SigD name ty) = 
+    genMethodDecls' env mp scv vars name ty
+genMethodDecls _ _ _ _ _ = return []
 
-genMethodsDecls :: SCV -> [String] -> [Dec] -> Q [Dec]
-genMethodsDecls scv vars ds = do
-    decls <- mapM (genMethodDecls scv vars) ds
+genMethodsDecls :: StateEnv -> Maybe String -> SCV -> [String] -> [Dec] -> Q [Dec]
+genMethodsDecls env mp scv vars ds = do
+    decls <- mapM (genMethodDecls env mp scv vars) ds
     return $ concat decls
 
 -- | Generates the type class for a state declaration
-genStateClass :: [TyVarBndr] -> [Dec] -> StateDecl -> Q Dec
-genStateClass tyvars fs (StateDecl _ name vs p ds _) = do
+genStateClass :: StateEnv -> [TyVarBndr] -> [Dec] -> StateDecl -> Q Dec
+genStateClass env tyvars fs (StateDecl _ name vs p ds _) = do
     o   <- newName "o"
     s   <- newName "s"
     m   <- newName "m"
     let
+        fam   = FamilyD TypeFam (mkName $ name ++ "St") ([PlainTV o] {- ++ tyvars -}) (Just (VarT $ mkName "p"))
         scv   = SCV o s m
         cname = mkName $ name ++ "Like"
         vars = [PlainTV o, PlainTV s, PlainTV m] ++ tyvars
@@ -137,5 +157,5 @@ genStateClass tyvars fs (StateDecl _ name vs p ds _) = do
     cxt <- genClassContext vs (parseType <$> p) scv
     inv <- genInvokeDecl vs name scv
     mds <- genModsDecls scv vs ds
-    ms  <- genMethodsDecls scv vs fs
-    return $ ClassD cxt cname vars deps ([inv] ++ mds ++ ms)
+    ms  <- genMethodsDecls env p scv vs fs
+    return $ ClassD cxt cname vars deps ([fam,inv] ++ mds ++ ms)

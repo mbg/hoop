@@ -69,7 +69,7 @@ dataInit :: GenParser Char a String
 dataInit = do
     string "="
     spaces 
-    r <- manyTill anyChar (try $ string "::")
+    r <- manyTill anyChar (try $ string "::") -- TODO: improve this, so that it takes the last ::
     return r
 
 dataDecl :: GenParser Char a StateMemberDecl

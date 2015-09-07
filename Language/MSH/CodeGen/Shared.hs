@@ -1,9 +1,24 @@
 module Language.MSH.CodeGen.Shared where
 
+import qualified Data.Map as M
+
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
 import Language.MSH.StateDecl
+import Language.MSH.CodeGen.Interop
+
+type StateEnv = M.Map String StateDecl
+
+typeArgs :: Type -> [Type]
+typeArgs (ForallT _ _ t)            = typeArgs t
+typeArgs (AppT (AppT ArrowT arg) a) = arg : typeArgs a
+typeArgs _                          = []
+
+countTypeArgs :: Type -> Int
+countTypeArgs (ForallT _ _ t)          = countTypeArgs t
+countTypeArgs (AppT (AppT ArrowT _) a) = 1 + countTypeArgs a
+countTypeArgs _                        = 0
 
 renameT :: (String -> String) -> Type -> Type
 renameT f (ConT (Name n _)) = ConT $ mkName $ f $ occString n
@@ -56,6 +71,12 @@ getFields (StateDataDecl n me _ : ds) = case me of
     Nothing  -> (n,"undefined") : getFields ds
 getFields (_ : ds) = getFields ds
 
+getFieldTypes :: [StateMemberDecl] -> Q [(String,Type)]
+getFieldTypes [] = return []
+getFieldTypes (StateDataDecl n _ t : ds) = do
+    ts <- getFieldTypes ds
+    return $ (n, parseType t) : ts
+
 -- | Applies a type `m' to the return type of a function.
 wrapMethodType :: Bool -> (Type -> Type) -> Type -> Type 
 wrapMethodType False m (ForallT tvs cxt t)  = wrapMethodType False m t
@@ -67,3 +88,6 @@ unwrapForalls :: Type -> Type -> Type
 unwrapForalls (ForallT tvs cxt t) b = ForallT tvs cxt (unwrapForalls t b)
 unwrapForalls _ b                   = b
 
+parameterise :: [Type] -> Type -> Type
+parameterise []     t = t
+parameterise (p:ps) t = AppT (AppT ArrowT p) (parameterise ps t)
