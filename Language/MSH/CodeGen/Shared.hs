@@ -8,8 +8,6 @@ import Language.Haskell.TH.Syntax
 import Language.MSH.StateDecl
 import Language.MSH.CodeGen.Interop
 
-type StateEnv = M.Map String StateDecl
-
 typeArgs :: Type -> [Type]
 typeArgs (ForallT _ _ t)            = typeArgs t
 typeArgs (AppT (AppT ArrowT arg) a) = arg : typeArgs a

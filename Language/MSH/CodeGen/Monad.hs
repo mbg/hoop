@@ -10,7 +10,7 @@ import Language.MSH.CodeGen.Shared
 import Language.MSH.CodeGen.Interop
 
 genStateType :: [TyVarBndr] -> StateDecl -> Q Dec 
-genStateType tyvars (StateDecl m name vars mp ds decls) = do
+genStateType tyvars (StateDecl { stateName = name, stateParams = vars, stateParentN = mp }) = do
     let
         -- unlike in the paper, the type synonym isn't just the name of the class
         tname = mkName $ name ++ "M"

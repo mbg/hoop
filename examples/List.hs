@@ -52,7 +52,20 @@ state MList a where
     toList = do 
         switch root $ \x -> case x of
             Nothing  -> return []
-            (Just r) -> return $ result (r.!toListItems) 
+            (Just r) -> return $ result (r.!toListItems)
+
+state Program where 
+    data l :: MList Int 
+
+    run :: MList Int -> [Int]
+    run arg = do 
+        l <: arg
+        this.!l.!insert 23
+        this.!l.!insert 16
+        this.!l.!insert 42
+        this.!l.!insert 24
+        r <- this.!l.!toList
+        return r
 |]
 
 test :: MList Int -> [Int]
@@ -66,3 +79,6 @@ foo :: MListItem Int
 foo = new (5, Nothing)
 
 bar = result $ foo.!insertEnd foo.!toListItems
+
+baz :: Program
+baz = new (new Nothing)

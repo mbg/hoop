@@ -6,6 +6,7 @@ module Language.MSH.CodeGen.Decls (
 
 import Control.Applicative ((<$>))
 import Control.Monad (replicateM)
+import Control.Monad.Except (runExcept)
 --import Control.Monad.State
 
 import Data.Char (toLower)
@@ -25,6 +26,7 @@ import Language.Haskell.Exts.Extension
 import Language.Haskell.Meta.Syntax.Translate (toType, toDecs, toExp)
 
 import Language.MSH.StateDecl
+import Language.MSH.StateEnv
 import Language.MSH.Constructor
 import Language.MSH.Parsers
 import Language.MSH.CodeGen.Shared
@@ -59,22 +61,28 @@ stateLensRules = lensRules -- { _fieldToDef = lensLookup }
 
 -- | Generates top-level declarations for a state declaration
 genStateDecl :: StateEnv -> StateDecl -> Q [Dec]
-genStateDecl env s@(StateDecl m name vars p ds decls) = do
+genStateDecl env s@(StateDecl { stateParams = vars, stateBody = decls  }) = do
     let
         tyvars   = map (PlainTV . mkName) vars
-        decs     = parseDecs decls
     d  <- genStateData tyvars s
     ls <- makeFieldOpticsForDec stateLensRules d
     t  <- genStateType tyvars s
     o  <- genStateObject tyvars s
-    c  <- genStateClass env tyvars decs s
-    is <- genStateInstances env c decs s
+    c  <- genStateClass env tyvars decls s
+    is <- genStateInstances env c decls s
     cs <- genConstructors env s
     misc <- genMiscInstances s o cs
-    ms <- genMethods env name vars decs
+    ms <- genMethods env (stateName s) vars decls
     return $ [d,t,o,c] ++ is ++ ls ++ [sctrDec cs] ++ ms ++ misc
 
 genStateDecls :: StateEnv -> Q [Dec]
-genStateDecls env = do
-    dss <- mapM (genStateDecl env) (M.elems env)
-    return $ concat dss
+genStateDecls env = case runExcept $ buildStateGraph env of 
+    (Left err)   -> fail $ show err
+    (Right env') -> do
+        dss <- mapM (genStateDecl env') (M.elems env')
+        return $ concat dss
+
+
+
+
+

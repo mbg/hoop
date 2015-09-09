@@ -6,6 +6,7 @@ import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
 import Language.MSH.StateDecl
+import Language.MSH.StateEnv
 import Language.MSH.CodeGen.Shared
 import Language.MSH.CodeGen.Interop
 import Language.MSH.CodeGen.Inheritance 
@@ -144,18 +145,23 @@ genMethodsDecls env mp scv vars ds = do
 
 -- | Generates the type class for a state declaration
 genStateClass :: StateEnv -> [TyVarBndr] -> [Dec] -> StateDecl -> Q Dec
-genStateClass env tyvars fs (StateDecl _ name vs p ds _) = do
-    o   <- newName "o"
-    s   <- newName "s"
-    m   <- newName "m"
-    let
-        fam   = FamilyD TypeFam (mkName $ name ++ "St") ([PlainTV o] {- ++ tyvars -}) (Just (VarT $ mkName "p"))
-        scv   = SCV o s m
-        cname = mkName $ name ++ "Like"
-        vars = [PlainTV o, PlainTV s, PlainTV m] ++ tyvars
-        deps = [FunDep [o] [s], FunDep [s] [o]]
-    cxt <- genClassContext vs (parseType <$> p) scv
-    inv <- genInvokeDecl vs name scv
-    mds <- genModsDecls scv vs ds
-    ms  <- genMethodsDecls env p scv vs fs
-    return $ ClassD cxt cname vars deps ([fam,inv] ++ mds ++ ms)
+genStateClass env tyvars fs (StateDecl {
+        stateName = name,
+        stateParams = vs,
+        stateParentN = p,
+        stateData = ds
+    }) = do
+        o   <- newName "o"
+        s   <- newName "s"
+        m   <- newName "m"
+        let
+            fam   = FamilyD TypeFam (mkName $ name ++ "St") ([PlainTV o] {- ++ tyvars -}) (Just (VarT $ mkName "p"))
+            scv   = SCV o s m
+            cname = mkName $ name ++ "Like"
+            vars = [PlainTV o, PlainTV s, PlainTV m] ++ tyvars
+            deps = [FunDep [o] [s], FunDep [s] [o]]
+        cxt <- genClassContext vs (parseType <$> p) scv
+        inv <- genInvokeDecl vs name scv
+        mds <- genModsDecls scv vs ds
+        ms  <- genMethodsDecls env p scv vs fs
+        return $ ClassD cxt cname vars deps ([fam,inv] ++ mds ++ ms)

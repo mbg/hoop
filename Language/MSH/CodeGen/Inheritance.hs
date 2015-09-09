@@ -6,6 +6,7 @@ import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
 import Language.MSH.StateDecl 
+import Language.MSH.StateEnv
 import Language.MSH.CodeGen.Shared
 import Language.MSH.CodeGen.Interop
 
@@ -20,10 +21,10 @@ instance HasMethod Dec where
 
 isOverridenEnv :: StateEnv -> StateDecl -> Name -> Q Bool
 isOverridenEnv env (StateDecl {
-        stateParent = mp,
+        stateParentN = mp,
         stateBody = body
-}) name = let ds = parseDecs body in case mp of
-    Nothing  -> return $ any (hasMethod name) ds
+}) name = case mp of
+    Nothing  -> return $ any (hasMethod name) body
     (Just p) -> isInheritedFromParent env p name
 
 {-parentFromInfo :: Cxt -> Maybe String 

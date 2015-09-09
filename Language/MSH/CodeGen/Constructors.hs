@@ -12,6 +12,7 @@ import Language.Haskell.TH.Syntax
 
 import Language.MSH.Constructor 
 import Language.MSH.StateDecl
+import Language.MSH.StateEnv
 import Language.MSH.CodeGen.Shared
 import Language.MSH.CodeGen.Interop
 
@@ -70,7 +71,7 @@ genStateExpr (StateDecl {
 
 -- | Generates the internal constructor `_mkS' for a class `S'.
 genBaseConstructor :: StateEnv -> StateDecl -> Q StateCtr
-genBaseConstructor env s@(StateDecl m name vars mp ds decls) = do
+genBaseConstructor env s@(StateDecl { stateName = name, stateParentN = mp, stateData = ds }) = do
     vs <- genCtrParams s 
     ts <- map snd <$> getFieldTypes ds 
     let
@@ -111,4 +112,5 @@ genSuperConstructor (StateDecl m name vars p decls) = do
     return $ FunD supName [Clause [] (NormalB supExp) []]-}
 
 genConstructors :: StateEnv -> StateDecl -> Q StateCtr
-genConstructors env s@(StateDecl m name vars mp ds decls) = genBaseConstructor env s
+genConstructors env s = 
+    genBaseConstructor env s

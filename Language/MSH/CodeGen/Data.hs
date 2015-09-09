@@ -20,7 +20,7 @@ genDataFields cl (StateDataDecl n _ t : ds) = do
     return $ v : vs
 
 genStateData :: [TyVarBndr] -> StateDecl -> Q Dec
-genStateData tyvars (StateDecl m name _ p ds decls) = do
+genStateData tyvars (StateDecl { stateName = name, stateData = ds }) = do
     let 
         dname    = mkName $ name ++ "State"
         dctrname = mkName $ "Mk" ++ name ++ "State"

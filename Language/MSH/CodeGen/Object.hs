@@ -72,26 +72,34 @@ middleCtr name vars p  = do
         subField name s vars]
 
 genObjectCtrs :: StateDecl -> Q [Con]
-genObjectCtrs (StateDecl m name vars Nothing ds decls) = do
-    dctr <- dataCtr name vars
-    case m of
-        Just Final -> return [dctr]
-        _          -> do
-            sctr <- startCtr name vars
-            return [dctr, sctr]
-genObjectCtrs (StateDecl m name vars (Just p) ds decls) = do
-    sctr <- startCtr name vars 
-    mctr <- middleCtr name vars (parseType p)
-    dctr <- dataCtr name vars
-    ectr <- endCtr name vars (parseType p)
-    case m of
-        Nothing       -> return [dctr, sctr, ectr, mctr]
-        Just Abstract -> return [sctr, mctr]
-        Just Final    -> return [dctr, ectr]
+genObjectCtrs (StateDecl { 
+    stateMod = m, 
+    stateName = name,
+    stateParams = vars,
+    stateParent = Nothing}) = do
+        dctr <- dataCtr name vars
+        case m of
+            Just Final -> return [dctr]
+            _          -> do
+                sctr <- startCtr name vars
+                return [dctr, sctr]
+genObjectCtrs (StateDecl { 
+    stateMod = m, 
+    stateName = name,
+    stateParams = vars,
+    stateParentN = (Just p) } ) = do
+        sctr <- startCtr name vars 
+        mctr <- middleCtr name vars (parseType p)
+        dctr <- dataCtr name vars
+        ectr <- endCtr name vars (parseType p)
+        case m of
+            Nothing       -> return [dctr, sctr, ectr, mctr]
+            Just Abstract -> return [sctr, mctr]
+            Just Final    -> return [dctr, ectr]
 
 -- | Generates the object type for a state declaration
 genStateObject :: [TyVarBndr] -> StateDecl -> Q Dec
-genStateObject tyvars s@(StateDecl m name vars mp ds decls) = do
+genStateObject tyvars s@(StateDecl { stateName = name }) = do
     let
         -- unlike in the paper, we use just the name for the object
         oname = mkName $ name {- ++ "Object" -} 

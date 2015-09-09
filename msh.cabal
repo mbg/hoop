@@ -68,7 +68,8 @@ library
     parsec >=3.1.9,
     lens >=4.10,
     mtl >= 2.1,
-    containers
+    containers,
+    text
   
   -- Directories containing source files.
   hs-source-dirs:      

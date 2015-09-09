@@ -11,10 +11,15 @@ import Text.ParserCombinators.Parsec
 import Control.Monad (void)
 
 import Data.Char (isSpace)
+import Data.Text (pack, unpack, strip)
 import qualified Data.Map as M
 
 import Language.MSH.StateDecl
 import Language.MSH.NewExpr
+import Language.MSH.CodeGen.Interop (parseDecs)
+
+trim :: String -> String 
+trim = unpack . strip . pack
 
 isSpaceNoNL :: GenParser Char a Char
 isSpaceNoNL = satisfy (\c -> isSpace c && c /= '\n' && c /= '\r')
@@ -62,7 +67,7 @@ classModifier :: GenParser Char a (Maybe StateMod)
 classModifier = abstract <|> final <|> return Nothing
 
 parentClass :: GenParser Char a (Maybe String)
-parentClass = (char ':' >> manyTill anyChar (try $ string "where") >>= \r -> return $ Just r) <|> 
+parentClass = (char ':' >> manyTill anyChar (try $ string "where") >>= \r -> return $ Just (trim r)) <|> 
               (string "where" >> return Nothing)
 
 dataInit :: GenParser Char a String
@@ -128,13 +133,17 @@ stateDecl = do
     many newline
     ms <- many $ try stateMember 
     vm <- valueDecl
+    let 
+        body = parseDecs vm
     return $ StateDecl {
-        stateMod    = mod,
-        stateName   = id,
-        stateParams = tyvars,
-        stateParent = p,
-        stateData   = ms,
-        stateBody   = vm
+        stateMod     = mod,
+        stateName    = trim id,
+        stateParams  = tyvars,
+        stateParentN = p,
+        stateParent  = Nothing,
+        stateData    = ms,
+        stateBody    = body,
+        stateMethods = preProcessMethods body
     }
 
 stateDecls :: GenParser Char a (M.Map String StateDecl)

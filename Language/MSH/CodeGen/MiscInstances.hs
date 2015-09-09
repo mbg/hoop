@@ -43,24 +43,45 @@ genDataInstance (StateDecl {
     decs <- genObjectInstanceDec name cs 
     return $ InstanceD [] (AppT (AppT ct ty) dt) [decs]
 
+genDowncastClauses :: StateDecl -> Q [Clause]
+genDowncastClauses s@(StateDecl { stateName = name }) = return [] {-do
+    obj <- newName "obj"
+    let
+        targetName  = mkName $ name ++ if isBaseClass (stateParent s) then "Start" else "Middle"
+        target      = NormalB $ RecConE targetName []
+
+        castFromEnd = Clause [VarP obj] target []
+        castFromMid = Clause [VarP obj] target []
+    case stateMod s of 
+        Nothing       -> [castFromMid, castFromEnd]
+        Just Abstract -> [castFromMid]
+        Just Final    -> [castFromEnd]-}
+
 -- TODO: instance body
 genCastInstance :: StateDecl -> Q [Dec]
-genCastInstance (StateDecl { 
+genCastInstance s@(StateDecl { 
     stateName = name, 
     stateParams = vars, 
     stateParent = mp
 }) = case mp of
     Nothing  -> return []
     (Just p) -> do
+        body <- genDowncastClauses s
         let
-            ct = ConT $ mkName "Cast"
-            ty = appN (ConT $ mkName name) vars
-        return $ [InstanceD [] (AppT (AppT ct ty) (parseType p)) []]
+            ct  = ConT $ mkName "Cast"
+            ty  = appN (ConT $ mkName name) vars
+            dwn = FunD (mkName "downcast") body
+        return $ [InstanceD [] (AppT (AppT ct ty) (parseType (stateName p))) [{-dwn-}]]
 
 
 genMiscInstances :: StateDecl -> Dec -> StateCtr -> Q [Dec]
-genMiscInstances decl dec ctr = do
-    d  <- genDataInstance decl dec
-    n  <- genNewInstance ctr decl
-    cs <- genCastInstance decl
-    return $ d : n : cs
+genMiscInstances decl dec ctr 
+    | isAbstractClass decl = do
+        d  <- genDataInstance decl dec
+        cs <- genCastInstance decl
+        return $ d : cs
+    | otherwise = do
+        d  <- genDataInstance decl dec
+        n  <- genNewInstance ctr decl
+        cs <- genCastInstance decl
+        return $ d : n : cs

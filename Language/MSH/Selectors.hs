@@ -139,6 +139,17 @@ instance (Object obj st ctx, Object r st' Identity, m ~ Identity) =>
         (li >>= \r -> return $ fst $ runIdentity $ re r) 
         (\s -> le s >>= \(r, obj) -> return (fst $ runIdentity $ re r, obj))
 
+type instance QueryObject (Selector Field obj st ctx r) = r 
+type instance QueryResult (Selector Field obj st ctx r) st' m x = 
+    Selector Method obj st ctx x
+instance (Object obj st ctx, Object r st' Identity, m ~ Identity) =>
+    Object (Selector Field obj st ctx r) st' m where 
+
+    (.!) (MkField eg ig es is) (MkMethod ri re) = MkMethod 
+        (ig >>= \r -> let (r',s) = runIdentity (re r) in is s >> return r') 
+        undefined
+        -- (\s -> eg s >>= \(r',s') -> let (r'',s'') = runIdentity (re r') in es s' s'' >> return r'')
+
 type instance QueryObject (Selector This obj st ctx r) = obj 
 type instance QueryResult (Selector This obj st ctx r) st' m x = 
     StateT st' ctx x
@@ -147,5 +158,3 @@ instance (Object obj st ctx, Object r st' ctx', ctx ~ ctx', st ~ st') =>
 
     (.!) _ (MkMethod ri re)      = ri
     (.!) _ (MkField ge gi se si) = gi
-
--- TODO: instance for Field

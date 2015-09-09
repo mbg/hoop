@@ -10,6 +10,7 @@ import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
 import Language.MSH.StateDecl
+import Language.MSH.StateEnv
 import Language.MSH.CodeGen.Shared
 import Language.MSH.CodeGen.Interop
 import Language.MSH.CodeGen.Inheritance
@@ -126,16 +127,16 @@ genExternalWrapper ename vs = LamE [VarP obj] $ appEs (AppE (VarE ename) (VarE o
     where
         obj = mkName "obj"
         
-genMethodDef' :: StateEnv -> Dec -> Maybe String -> String -> String -> Q [Dec]
-genMethodDef' env cls mp cn name = do
+genMethodDef' :: StateEnv -> MethodTable -> Dec -> Maybe String -> String -> String -> Q [Dec]
+genMethodDef' env tbl cls mp cn name = do
     ov <- isInherited env mp (mkName name)
     if ov then return []
     else do
         let
             argc = numArgsForMethod cls ("_icall_" ++ name)
-            -- external
+            -- external call name
             ename    = mkName $ "_ecall_" ++ name
-            -- internal
+            -- internal call name
             iname    = mkName $ "_icall_" ++ name
         vs   <- replicateM argc (newName "v")
         edcl <- genDataClause cn vs (appEs (VarE iname) (map VarE vs))
@@ -146,7 +147,9 @@ genMethodDef' env cls mp cn name = do
             external = FunD ename eclauses
             -- internal
             mname    = mkName $ "_" ++ cn ++ "_" ++ name
-            iclauses = [Clause [] (NormalB (VarE mname)) []]
+            iclauses = if isAbstract (mkName name) tbl 
+                       then [Clause [] (NormalB (AppE (VarE $ mkName "error") (LitE $ StringL "Abstract method called."))) []]
+                       else [Clause [] (NormalB (VarE mname)) []]
             internal = FunD iname iclauses
             -- method
             iwrapper = genInternalWrapper iname vs
@@ -156,13 +159,16 @@ genMethodDef' env cls mp cn name = do
             method   = FunD (mkName $ name) mclauses 
         return [external, internal, method]
 
-genMethodDef :: StateEnv -> Dec -> Maybe String -> String -> Dec -> Q [Dec]
-genMethodDef env cls mp cn (FunD name _)          = genMethodDef' env cls mp cn (nameBase name)
-genMethodDef env cls mp cn (ValD (VarP name) _ _) = genMethodDef' env cls mp cn (nameBase name)
-genMethodDef _   _   _  _  _                      = return []
+-- | `genMethodDef env cls mp cn d' generates a method for based on `d'.
+genMethodDef :: StateEnv -> MethodTable -> Dec -> Maybe String -> String -> Dec -> Q [Dec]
+genMethodDef env tbl cls mp cn (SigD name _)          = genMethodDef' env tbl cls mp cn (nameBase name)
+--genMethodDef env tbl cls mp cn (FunD name _)          = genMethodDef' env cls mp cn (nameBase name)
+--genMethodDef env tbl cls mp cn (ValD (VarP name) _ _) = genMethodDef' env cls mp cn (nameBase name)
+genMethodDef _   _   _   _  _  _                      = return []
 
-genMethodsDefs :: StateEnv -> Dec -> [Dec] -> Maybe String -> String -> Q [Dec]
-genMethodsDefs env cls decs mp cn = concat <$> mapM (genMethodDef env cls mp cn) decs
+genMethodsDefs :: StateEnv -> Dec -> MethodTable -> Maybe String -> String -> Q [Dec]
+genMethodsDefs env cls tbl mp cn = 
+    concat <$> mapM (genMethodDef env tbl cls mp cn) (M.elems $ methodSigs tbl)
 
 getBaseMonad :: Maybe String -> Type 
 getBaseMonad Nothing  = ConT $ mkName "Identity"
@@ -170,10 +176,11 @@ getBaseMonad (Just p) = renameParent (\n -> n ++ "M") $ parseType p
 
 genPrimaryInstance :: StateEnv -> Dec -> [Dec] -> StateDecl -> Q Dec 
 genPrimaryInstance env cls decs (StateDecl {
-    stateName   = name, 
-    stateParams = vars,
-    stateData   = ds,
-    stateParent = mp
+    stateName    = name, 
+    stateParams  = vars,
+    stateData    = ds,
+    stateParentN  = mp,
+    stateMethods = methods
 }) = do
     let
         cxt = []
@@ -185,7 +192,7 @@ genPrimaryInstance env cls decs (StateDecl {
         fam = TySynInstD (mkName $ name ++ "St") $ TySynEqn [ConT on] (ConT sn)
     invk <- genInvokeDef name
     mods <- genModsDefs name ds
-    ms   <- genMethodsDefs env cls decs mp name
+    ms   <- genMethodsDefs env cls methods mp name
     return $ InstanceD cxt ty ([fam,invk] ++ mods ++ ms)
 
 genObjectTypeInsts :: Type -> Type -> Q [Dec]
@@ -226,16 +233,21 @@ genObjectInstance (StateDecl { stateName = name, stateParams = bars{-, statePare
     return $ InstanceD cxt ty ds : fams
 genObjectInstance _ = return []
 
-genParentalInstance :: StateDecl -> StateDecl -> Q Dec 
+-- TODO: do this recursively
+-- TODO: method bodies
+genParentalInstance :: StateDecl -> StateDecl -> Q [Dec] 
 genParentalInstance sub parent = do
     let
         cxt = []
         cn  = mkName $ (stateName parent) ++ "Like"
         on  = mkName (stateName sub)
         sn  = mkName $ (stateName sub) ++ "State"
-        bt  = getBaseMonad (stateParent sub)
-        ty  = appN (AppT (AppT (AppT (ConT cn) (ConT on)) (ConT sn)) bt) (stateParams parent) -- TODO: not sure if this should be parent or inferred from the parent type?
-    return $ InstanceD cxt ty []
+        bt  = getBaseMonad (stateParentN sub) 
+        -- TODO: not sure if the parameters should be from the parent or inferred from the parent type?
+        ty  = foldl AppT (ConT cn) ([ConT on, ConT sn, bt] ++ map (VarT . mkName) (stateParams parent))
+        idty = foldl AppT (ConT cn) ([ConT on, ConT sn, ConT $ mkName "Identity"] ++ map (VarT . mkName) (stateParams parent))
+    return [ InstanceD cxt ty []
+           , InstanceD cxt idty []]
 
 genParentalInstanceFromInfo :: StateDecl -> Info -> Q Dec 
 genParentalInstanceFromInfo sub (ClassI (ClassD _ cn vars _ _) _) = do
@@ -244,39 +256,26 @@ genParentalInstanceFromInfo sub (ClassI (ClassD _ cn vars _ _) _) = do
         cxt = []
         on  = mkName (stateName sub)
         sn  = mkName $ (stateName sub) ++ "State"
-        bt  = getBaseMonad (stateParent sub)
+        bt  = getBaseMonad (stateParentN sub) -- TODO: THIS IS WRONG! 
         ty  = appN (AppT (AppT (AppT (ConT cn) (ConT on)) (ConT sn)) bt) (map nameBase ps) -- TODO: not sure if this should be parent or inferred from the parent type?
     return $ InstanceD cxt ty []
 
 -- | Generates instances of the parental type classes.
 genParentalInstances :: StateEnv -> StateDecl -> Q [Dec]
-genParentalInstances _ (StateDecl _ _ _ Nothing _ _) = do
+genParentalInstances _ (StateDecl { stateParent = Nothing }) = do
     return []
-genParentalInstances env s@(StateDecl m name vars (Just p) ds decls) = do
-    let
-        pt = parseType p
-        pn = parentName pt
-    case M.lookup (nameBase pn) env of
-        Nothing  -> do
-            mn <- lookupTypeName $ nameBase pn ++ "Like"
-            case mn of 
-                Nothing -> do
-                    fail $ "`" ++ (nameBase pn) ++ "' is neither a state class in the current quote nor is it in scope."
-                (Just n) -> do
-                    info <- reify n
-                    i <- genParentalInstanceFromInfo s info
-                    return [i]
-        (Just p) -> do
-            i <- genParentalInstance s p
-            return [i]  
+genParentalInstances env s@(StateDecl { stateParent = Just parent }) = do
+    genParentalInstance s parent
 
 -- | Generates type class instances for a state declaration
 --   For a base class, there will be one instance of the corresponding type class
 --   For sub-classes, there will be two instances of the corresponding type class, 
 --   as well as instances of all parent classes
 genStateInstances :: StateEnv -> Dec -> [Dec] -> StateDecl -> Q [Dec]
-genStateInstances env cls decs s@(StateDecl m name vars p ds decls) = do
+genStateInstances env cls decs s = do
+    -- generate the instance for the `Object' class -- one per state class
     obj <- genObjectInstance s
+    -- generate the primary instance
     p   <- genPrimaryInstance env cls decs s
     ps  <- genParentalInstances env s
     return $ (p : ps) ++ obj
