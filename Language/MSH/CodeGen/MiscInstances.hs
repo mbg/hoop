@@ -43,21 +43,63 @@ genDataInstance (StateDecl {
     decs <- genObjectInstanceDec name cs 
     return $ InstanceD [] (AppT (AppT ct ty) dt) [decs]
 
-genDowncastClauses :: StateDecl -> Q [Clause]
-genDowncastClauses s@(StateDecl { stateName = name }) = return [] {-do
-    obj <- newName "obj"
+genParentPattern :: Name -> Name -> StateDecl -> Pat 
+genParentPattern pd pp p
+    | isBaseClass p = ConP (mkName $ stateName p ++ "Data") [VarP pd]
+    | otherwise     = ConP (mkName $ stateName p ++ "End") [VarP pp, VarP pd]
+
+genParentCtr :: Name -> Name -> StateDecl -> Exp -> Exp
+genParentCtr pd pp p s
+    | isBaseClass p = 
+        foldl AppE (ConE (mkName $ stateName p ++ "Start")) [VarE pd, s]
+    | otherwise     = 
+        foldl AppE (ConE (mkName $ stateName p ++ "Middle")) [VarE pp, VarE pd, s]
+
+-- downcast (CEnd )
+genCastFromEnd :: StateDecl -> Q Clause 
+genCastFromEnd (StateDecl { stateName = name, stateParent = Just p }) = do 
+    d  <- newName "d"   -- represents the data of this object
+    pd <- newName "pd"  -- represents the data of the parent
+    pp <- newName "pp"  -- represents the parent of the parent
     let
-        targetName  = mkName $ name ++ if isBaseClass (stateParent s) then "Start" else "Middle"
-        target      = NormalB $ RecConE targetName []
+        ctrName = mkName $ name ++ "End"
 
-        castFromEnd = Clause [VarP obj] target []
-        castFromMid = Clause [VarP obj] target []
+        parPat  = genParentPattern pd pp p
+
+        exp     = AppE (ConE $ mkName $ name ++ "Data") (VarE d)
+        pattern = ConP ctrName [parPat, VarP d]
+        body    = genParentCtr pd pp p exp
+    return $ Clause [pattern] (NormalB body) []
+
+genCastFromMid :: StateDecl -> Q Clause 
+genCastFromMid (StateDecl { stateName = name, stateParent = Just p }) = do 
+    d  <- newName "d"   -- represents the data of this object
+    ss <- newName "s"   -- represents the delta-object of the child
+    pd <- newName "pd"  -- represents the data of the parent
+    pp <- newName "pp"  -- represents the parent of the parent
+    let
+        ctrName = mkName $ name ++ "Middle"
+
+        parPat  = genParentPattern pd pp p
+
+        exp     = foldl AppE (ConE $ mkName $ name ++ "Start") [VarE d, VarE ss]
+        pattern = ConP ctrName [parPat, VarP d, VarP ss]
+        body    = genParentCtr pd pp p exp
+    return $ Clause [pattern] (NormalB body) [] 
+
+-- | `genDowncastClauses s' generates the clauses for the `downcast'
+--   function in an instance of `Cast' for state class `s'.
+genDowncastClauses :: StateDecl -> Q [Clause]
+genDowncastClauses s = do
+    castFromEnd <- genCastFromEnd s
+    castFromMid <- genCastFromMid s
     case stateMod s of 
-        Nothing       -> [castFromMid, castFromEnd]
-        Just Abstract -> [castFromMid]
-        Just Final    -> [castFromEnd]-}
+        Nothing       -> return [castFromMid, castFromEnd]
+        Just Abstract -> return [castFromMid]
+        Just Final    -> return [castFromEnd]
 
--- TODO: instance body
+-- | `genCastInstance s' generates an instance of the `Cast' typeclass for
+--   state class `s' if `s' is not a base class.
 genCastInstance :: StateDecl -> Q [Dec]
 genCastInstance s@(StateDecl { 
     stateName = name, 
@@ -71,7 +113,7 @@ genCastInstance s@(StateDecl {
             ct  = ConT $ mkName "Cast"
             ty  = appN (ConT $ mkName name) vars
             dwn = FunD (mkName "downcast") body
-        return $ [InstanceD [] (AppT (AppT ct ty) (parseType (stateName p))) [{-dwn-}]]
+        return $ [InstanceD [] (AppT (AppT ct ty) (parseType (stateName p))) [dwn]]
 
 
 genMiscInstances :: StateDecl -> Dec -> StateCtr -> Q [Dec]

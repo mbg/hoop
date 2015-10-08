@@ -20,12 +20,12 @@ state MListItem a where
     data val  = error "val" :: a
     data next = Nothing     :: Maybe (MListItem a)
 
-    insertEnd :: MListItem a -> MListItem a  
+    insertEnd :: MListItem a -> Void  
     insertEnd item = do
         switch next $ \x -> case x of
             Nothing  -> next <: Just item 
             (Just n) -> next <: Just (object (n.!insertEnd item))
-        return item
+        return ()
 
     toListItems :: [a]
     toListItems = do
@@ -46,7 +46,10 @@ state MList a where
             item = new (val, Nothing)
         switch root $ \x -> case x of
             Nothing  -> root <: Just item
-            (Just r) -> root <: Just (object (r.!insertEnd item))
+            (Just r) -> do
+                this.!root.$insertEnd item
+                return ()
+                --root <: Just (object (r.!insertEnd item))
 
     toList :: [a]
     toList = do 
@@ -68,6 +71,9 @@ state Program where
         return r
 |]
 
+instance Show (MList Int) where 
+    show o = show $ result $ o.!toList
+
 test :: MList Int -> [Int]
 test l = let
     a = object (l.!insert 23)
@@ -78,7 +84,7 @@ test l = let
 foo :: MListItem Int 
 foo = new (5, Nothing)
 
-bar = result $ foo.!insertEnd foo.!toListItems
+--bar = result $ foo.!insertEnd foo.!toListItems
 
 baz :: Program
 baz = new (new Nothing)

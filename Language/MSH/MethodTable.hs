@@ -25,9 +25,10 @@ addMethodDef :: Name -> Dec -> MethodTable -> MethodTable
 addMethodDef name dec tbl = tbl { 
     methodDefs = M.insert (nameBase name) dec (methodDefs tbl) }
 
--- | Determines whether a method is abstract.
-isAbstract :: Name -> MethodTable -> Bool
-isAbstract n tbl = M.notMember (nameBase n) (methodDefs tbl)
+
+
+isImplemented :: Name -> MethodTable  -> Bool
+isImplemented n tbl = M.member (nameBase n) (methodDefs tbl) 
 
 -- | `preProcessMethods ds' builds a value of type `MethodTable' from a list
 --   of top-level declarations.

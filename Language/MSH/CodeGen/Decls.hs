@@ -72,7 +72,7 @@ genStateDecl env s@(StateDecl { stateParams = vars, stateBody = decls  }) = do
     is <- genStateInstances env c decls s
     cs <- genConstructors env s
     misc <- genMiscInstances s o cs
-    ms <- genMethods env (stateName s) vars decls
+    ms <- genMethods env s (stateName s) vars decls
     return $ [d,t,o,c] ++ is ++ ls ++ [sctrDec cs] ++ ms ++ misc
 
 genStateDecls :: StateEnv -> Q [Dec]

@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Language.MSH.CodeGen.Instances where
 
 import Control.Applicative ((<$>))
@@ -14,16 +16,24 @@ import Language.MSH.StateEnv
 import Language.MSH.CodeGen.Shared
 import Language.MSH.CodeGen.Interop
 import Language.MSH.CodeGen.Inheritance
+import Language.MSH.CodeGen.SharedInstance (genInvokeDef, genRunStateT, genInvoke)
+import Language.MSH.CodeGen.ObjectInstance (genObjectInstance)
+import Language.MSH.CodeGen.PrimaryInstance (genPrimaryInstance, genIdentityInstance, genParentalInstance)
 
-{-
+{--------------------------------------------------------------------------
     Type class instances
--}
+--------------------------------------------------------------------------}
 
-genRunStateT :: Exp -> Exp -> Exp 
-genRunStateT f d = AppE (AppE (VarE $ mkName "runStateT") f) d
 
-genDataClause :: String -> [Name] -> Exp -> Q Clause 
-genDataClause name vars expr = do
+
+-- | Enumerates different member generation modes.
+data MemberGenMode = Primary    -- ^ Generated members will correspond to their implementations
+                   | Lift       -- ^ Generated members will forward calls to the parent, unless overriden
+                   | Invoke     -- ^ Generates members will call the `_invoke' method to construct a monad stack 
+
+genDataClause :: MemberGenMode -> String -> [Name] -> Exp -> Q Clause 
+-- [Primary] (Data d) x0..xn = do { (r,d') <- runStateT expr d; return (r, Data d') }
+genDataClause Primary name vars expr = do
     d  <- newName "d"
     r  <- newName "r"
     d' <- newName "d'"
@@ -34,9 +44,20 @@ genDataClause name vars expr = do
         ret  = AppE (VarE $ mkName "return") (TupE [VarE r, AppE (ConE ctr) (VarE d')])
         body = DoE [BindS bpat (genRunStateT expr (VarE d)), NoBindS ret]
     return $ Clause pat (NormalB body) []
+-- [Invoke]  (Data d) x0..xn = error ""
+genDataClause Invoke name vars expr = do 
+    d  <- newName "d"
+    r  <- newName "r"
+    d' <- newName "d'"
+    let
+        ctr  = mkName $ name ++ "Data"
+        pat  = ConP ctr [VarP d] : map VarP vars
+        body = AppE (VarE $ mkName "error") (VarE $ mkName "_msh_rt_invalid_call_state")
+    return $ Clause pat (NormalB body) []
 
-genStartClause :: String -> [Name] -> (Exp -> Exp) -> Q Clause 
-genStartClause name vars expr = do
+genStartClause :: MemberGenMode -> String -> [Name] -> (Exp -> Exp) -> Q Clause 
+-- (Start d s) x0...xn = do { ((r,s'),d') <- runStateT (expr s); return (r, Start d' s') }
+genStartClause Primary name vars expr = do
     d  <- newName "d"
     s  <- newName "s"
     r  <- newName "r"
@@ -48,6 +69,61 @@ genStartClause name vars expr = do
         bpat = TupP [TupP [VarP r, VarP s'], VarP d']
         ret  = AppE (VarE $ mkName "return") (TupE [VarE r, AppE (AppE (ConE ctr) (VarE d')) (VarE s')])
         body = DoE [BindS bpat (genRunStateT (expr (VarE s)) (VarE d)), NoBindS ret]
+    return $ Clause pat (NormalB body) []
+genStartClause Invoke name vars expr = do 
+    d  <- newName "d"
+    s  <- newName "s"
+    let
+        ctr  = mkName $ name ++ "Start"
+        pat  = ConP ctr [VarP d, VarP s] : map VarP vars
+        body = AppE (VarE $ mkName "error") (VarE $ mkName "_msh_rt_invalid_call_state")
+    return $ Clause pat (NormalB body) []
+
+genMiddleClause :: MemberGenMode -> StateDecl -> [Name] -> Exp -> Q Clause 
+{-genMiddleClause Primary (StateDecl { stateName = name }) vars expr = do 
+    d  <- newName "d"
+    s  <- newName "s"
+    r  <- newName "r"
+    d' <- newName "d'"
+    s' <- newName "s'"
+    p  <- newName "p"
+    let
+        ctr  = mkName $ name ++ "Middle"
+        pat  = ConP ctr [VarP p, VarP d, VarP s] : map VarP vars
+        bpat = TupP [TupP [VarP r, VarP s'], VarP d']
+        ret  = AppE (VarE $ mkName "return") (TupE [VarE r, foldl AppE (ConE ctr) [VarE p, VarE d', VarE s']])
+        body = DoE [BindS bpat (genRunStateT (expr (VarE s)) (VarE d)), NoBindS ret]
+    return $ Clause pat (NormalB body) []-}
+genMiddleClause Invoke (StateDecl { stateName = name, stateParent = Just parent }) vars expr = do 
+    p  <- newName "p"
+    d  <- newName "d"
+    s  <- newName "s"
+    r  <- newName "r"
+    o  <- newName "o"
+    p' <- newName "p'"
+    obj <- newName "obj"
+    let
+        ctr  = mkName $ name ++ "Middle"
+        pat  = (AsP obj $ ConP ctr [VarP p, VarP d, VarP s]) : map VarP vars
+        dn   = mkName $ "_" ++ name ++ "_data"
+        sn   = mkName $ "_" ++ name ++ "_sub"
+        ret  = AppE (VarE $ mkName "return") (TupE [VarE r, foldl AppE (ConE ctr) [VarE p', AppE (VarE dn) (VarE o), AppE (VarE sn) (VarE o)]])
+        bpat = TupP [VarP r, VarP p', VarP o]
+        body = DoE [BindS bpat (genInvoke (stateName parent) (VarE obj) expr (VarE s)), NoBindS ret]
+    return $ Clause pat (NormalB body) []
+
+genEndClause :: MemberGenMode -> String -> [Name] -> Exp -> Q Clause 
+genEndClause Primary name vars expr = do
+    d  <- newName "d"
+    r  <- newName "r"
+    d' <- newName "d'"
+    p  <- newName "p"
+    let
+        ctr  = mkName $ name ++ "End"
+        pat  = ConP ctr [VarP p, VarP d] : map VarP vars
+        bpat = TupP [VarP r, VarP d']
+        ret  = AppE (VarE $ mkName "return") (TupE [VarE r, foldl AppE (ConE ctr) [VarE p, VarE d']])
+        body = DoE [BindS bpat (genRunStateT expr (VarE d)), NoBindS ret]
     return $ Clause pat (NormalB body) []
 
 findClassMethodType :: [Dec] -> String -> Type
@@ -63,53 +139,55 @@ numArgsForMethod :: Dec -> String -> Int
 numArgsForMethod (ClassD _ _ _ _ ds) n = 
     countTypeArgs $ findClassMethodType ds n
 
-genInvokeDef :: String -> Q Dec
-genInvokeDef n = do
-    s <- newName "s"
-    f <- newName "f"
-    o <- newName "o"
-    r <- newName "r"
-    d' <- newName "d'"
-    s' <- newName "s'"
-    let
-        name = mkName $ "_" ++ n ++ "_invoke"
-        fn   = mkName $ "_" ++ n ++ "_data"
-        ps   = [VarP s, VarP f, VarP o]
-        runs = BindS (TupP [TupP [VarP r, VarP s'], VarP d']) (genRunStateT (AppE (VarE f) (VarE s)) (AppE (VarE $ mkName "extractData") (VarE o)))
-        rets = AppE (VarE $ mkName "return") (TupE [VarE r, RecUpdE (VarE o) [(fn,VarE d')], VarE s'])
-        body = NormalB $ DoE [runs, NoBindS rets]
-    return $ FunD name [Clause ps body []]
+{--------------------------------------------------------------------------
+    Fields
+--------------------------------------------------------------------------}
 
-lensName :: String -> String 
+{-lensName :: String -> String 
 lensName (x:xs) = toLower x : xs
 
+genGetterBody :: MemberGenMode -> String -> Name -> Exp 
+genGetterBody Primary lens self = AppE (VarE $ mkName "use") (VarE $ mkName lens)
+genGetterBody Lift    lens self = AppE (VarE $ mkName "lift") (VarE self)
+genGetterBody Invoke  lens self = AppE (VarE $ mkName "error") (LitE $ 
+    StringL "Invalid call: trying to construct monad stack in an internal getter call.")
  
-
-genModDefs :: String -> String -> Q [Dec]
-genModDefs name fname = do
+-- | `genModDefs mode name fname' generates the getter, the setter, and the
+--   field selector for a field named `fname' in a state class named `name'
+--   using routing mode `mode'.
+genModDefs :: MemberGenMode -> String -> String -> Q [Dec]
+genModDefs mode name fname = do
     let
-        bname   = "_" ++ fname 
-        gname   = "_get" ++ bname
-        sname   = "_set" ++ bname
-        lname   = lensName name ++ "_" ++ fname
-    gdcl <- genDataClause name [] (VarE $ mkName $ gname ++ "'")
-    gscl <- genStartClause name [] (AppE (VarE $ mkName gname))
+        bname   = "_" ++ fname                      -- the base name of the field
+        gname   = "_get" ++ bname                   -- the name of the getter
+        sname   = "_set" ++ bname                   -- the name of the setter
+        lname   = lensName name ++ "_" ++ fname     -- the name of the lens for this field
+    gdcl <- genDataClause mode name [] (VarE $ mkName $ gname ++ "'")
+    gscl <- genStartClause mode name [] (AppE (VarE $ mkName gname))
     let
         gcls    = [gdcl,gscl]
-        getter  = FunD (mkName gname) gcls
-        getter' = FunD (mkName $ gname ++ "'") [Clause [] (NormalB (AppE (VarE $ mkName "use") (VarE $ mkName lname))) []]
+        ext_g   = mkName gname 
+        int_g   = mkName $ gname ++ "'"
+        getter  = FunD ext_g gcls
+        getter' = FunD int_g [Clause [] (NormalB $ genGetterBody mode lname int_g) []]
     v    <- newName "v"
-    sdcl <- genDataClause name [v] (AppE (VarE $ mkName $ sname ++ "'") (VarE v))
-    sscl <- genStartClause name [v] (\s -> AppE (AppE (VarE $ mkName sname) s) (VarE v))
+    sdcl <- genDataClause mode name [v] (AppE (VarE $ mkName $ sname ++ "'") (VarE v))
+    sscl <- genStartClause mode name [v] (\s -> AppE (AppE (VarE $ mkName sname) s) (VarE v))
     let
         scls    = [sdcl,sscl]
-        setter  = FunD (mkName sname) scls
-        setter' = FunD (mkName $ sname ++ "'") [Clause [] (NormalB (AppE (VarE $ mkName "assign") (VarE $ mkName lname))) []]
+        ext_s   = mkName sname 
+        int_s   = mkName $ sname ++ "'"
+        setter  = FunD ext_s scls
+        setter' = FunD int_s [Clause [] (NormalB (AppE (VarE $ mkName "assign") (VarE $ mkName lname))) []]
         field   = FunD (mkName fname) [Clause [] (NormalB $ appEs (ConE $ mkName "MkField") [VarE $ mkName gname, VarE $ mkName $ gname ++ "'", VarE $ mkName sname, VarE $ mkName $ sname ++ "'" ]) []]
     return [getter,getter',setter,setter',field]
 
-genModsDefs :: String -> [StateMemberDecl] -> Q [Dec]
-genModsDefs name ds = concat <$> mapM (genModDefs name) (map stateDataName ds)
+-- | `genModsDefs mode name ds' generates getters, setters, and field selectors
+--   for the fields in `ds' which are part of a state class named `name'. `mode'
+--   determines how these calls will be routed.
+genModsDefs :: MemberGenMode -> String -> [StateMemberDecl] -> Q [Dec]
+genModsDefs mode name ds = 
+    concat <$> mapM (genModDefs mode name) (map stateDataName ds)
 
 genSelectorWrapper :: [Name] -> Exp -> Exp
 genSelectorWrapper [] exp = exp
@@ -127,8 +205,8 @@ genExternalWrapper ename vs = LamE [VarP obj] $ appEs (AppE (VarE ename) (VarE o
     where
         obj = mkName "obj"
         
-genMethodDef' :: StateEnv -> MethodTable -> Dec -> Maybe String -> String -> String -> Q [Dec]
-genMethodDef' env tbl cls mp cn name = do
+genMethodDef' :: MemberGenMode -> StateEnv -> StateDecl -> MethodTable -> Dec -> Maybe String -> String -> String -> Q [Dec]
+genMethodDef' mode env decl tbl cls mp cn name = do
     ov <- isInherited env mp (mkName name)
     if ov then return []
     else do
@@ -139,16 +217,18 @@ genMethodDef' env tbl cls mp cn name = do
             -- internal call name
             iname    = mkName $ "_icall_" ++ name
         vs   <- replicateM argc (newName "v")
-        edcl <- genDataClause cn vs (appEs (VarE iname) (map VarE vs))
-        escl <- genStartClause cn vs (\s -> appEs (AppE (VarE ename) s) (map VarE vs)) 
+        -- TODO: these should be generated per call?
+        edcl <- genDataClause mode cn vs (appEs (VarE iname) (map VarE vs))
+        escl <- genStartClause mode cn vs (\s -> appEs (AppE (VarE ename) s) (map VarE vs)) 
+        --emcl <- genMiddleClause mode cn vs (VarE iname) 
         let
             -- external
-            eclauses = [edcl, escl]
+            eclauses = [edcl, escl] -- TODO: this should match the avail. constructors
             external = FunD ename eclauses
             -- internal
             mname    = mkName $ "_" ++ cn ++ "_" ++ name
             iclauses = if isAbstract (mkName name) tbl 
-                       then [Clause [] (NormalB (AppE (VarE $ mkName "error") (LitE $ StringL "Abstract method called."))) []]
+                       then [Clause [] (NormalB (AppE (VarE $ mkName "error") (VarE $ mkName "_msh_rt_invalid_call_abstract"))) []]
                        else [Clause [] (NormalB (VarE mname)) []]
             internal = FunD iname iclauses
             -- method
@@ -160,22 +240,22 @@ genMethodDef' env tbl cls mp cn name = do
         return [external, internal, method]
 
 -- | `genMethodDef env cls mp cn d' generates a method for based on `d'.
-genMethodDef :: StateEnv -> MethodTable -> Dec -> Maybe String -> String -> Dec -> Q [Dec]
-genMethodDef env tbl cls mp cn (SigD name _)          = genMethodDef' env tbl cls mp cn (nameBase name)
+genMethodDef :: MemberGenMode -> StateEnv -> StateDecl -> MethodTable -> Dec -> Maybe String -> String -> Dec -> Q [Dec]
+genMethodDef mode env decl tbl cls mp cn (SigD name _)          = genMethodDef' mode env decl tbl cls mp cn (nameBase name)
 --genMethodDef env tbl cls mp cn (FunD name _)          = genMethodDef' env cls mp cn (nameBase name)
 --genMethodDef env tbl cls mp cn (ValD (VarP name) _ _) = genMethodDef' env cls mp cn (nameBase name)
-genMethodDef _   _   _   _  _  _                      = return []
+genMethodDef _    _   _    _   _   _  _  _                      = return []
 
-genMethodsDefs :: StateEnv -> Dec -> MethodTable -> Maybe String -> String -> Q [Dec]
-genMethodsDefs env cls tbl mp cn = 
-    concat <$> mapM (genMethodDef env tbl cls mp cn) (M.elems $ methodSigs tbl)
+genMethodsDefs :: MemberGenMode -> StateEnv -> Dec -> StateDecl -> MethodTable -> Maybe String -> String -> Q [Dec]
+genMethodsDefs mode env cls decl tbl mp cn = 
+    concat <$> mapM (genMethodDef mode env decl tbl cls mp cn) (M.elems $ methodSigs tbl)
 
 getBaseMonad :: Maybe String -> Type 
 getBaseMonad Nothing  = ConT $ mkName "Identity"
-getBaseMonad (Just p) = renameParent (\n -> n ++ "M") $ parseType p
+getBaseMonad (Just p) = renameParent (\n -> n ++ "M") $ parseType p-}
 
-genPrimaryInstance :: StateEnv -> Dec -> [Dec] -> StateDecl -> Q Dec 
-genPrimaryInstance env cls decs (StateDecl {
+{-genPrimaryInstance :: StateEnv -> Dec -> [Dec] -> StateDecl -> Q Dec 
+genPrimaryInstance env cls decs decl@(StateDecl {
     stateName    = name, 
     stateParams  = vars,
     stateData    = ds,
@@ -191,51 +271,34 @@ genPrimaryInstance env cls decs (StateDecl {
         ty  = appN (AppT (AppT (AppT (ConT cn) (ConT on)) (ConT sn)) bt) vars
         fam = TySynInstD (mkName $ name ++ "St") $ TySynEqn [ConT on] (ConT sn)
     invk <- genInvokeDef name
-    mods <- genModsDefs name ds
-    ms   <- genMethodsDefs env cls methods mp name
-    return $ InstanceD cxt ty ([fam,invk] ++ mods ++ ms)
+    mods <- genModsDefs Primary name ds
+    ms   <- genMethodsDefs Primary env cls decl methods mp name
+    return $ InstanceD cxt ty ([fam,invk] ++ mods ++ ms)-}
 
-genObjectTypeInsts :: Type -> Type -> Q [Dec]
-genObjectTypeInsts obj st = do
-    m <- VarT `fmap` newName "m"
-    s <- VarT `fmap` newName "st"
-    r <- VarT `fmap` newName "r"
-    return [ TySynInstD (mkName "QueryObject") $ TySynEqn [obj] obj
-           , TySynInstD (mkName "QueryMonad")  $ TySynEqn [obj, m] m
-           , TySynInstD (mkName "QueryResult") $ TySynEqn [obj, s, m, r] 
-                (foldl AppT (ConT $ mkName "RunnableQuery") [ ConT (mkName "ExtCall")
-                                                            , obj, st, m, r ])]
-
--- | `genObjectInstance decl' generates an instance of `Object' 
---   for the state declaration `decl'. Note: only one such instance
---   is needed per state decl.
-genObjectInstance :: StateDecl -> Q [Dec] 
-genObjectInstance (StateDecl { stateName = name, stateParams = bars{-, stateParent = (Just ps)-} }) = do
+{-genIdentityInstance :: StateEnv -> Dec -> [Dec] -> StateDecl -> Q Dec 
+genIdentityInstance env cls decs decl@(StateDecl {
+    stateName    = name, 
+    stateParams  = vars,
+    stateData    = ds,
+    stateParentN  = mp,
+    stateMethods = methods
+}) = do
     let
-        obj = appN (ConT $ mkName name) bars
-        st  = appN (ConT $ mkName $ name ++ "State") bars
-    -- The name of the arbitrary monad this instance is for.
-    m <- newName "m"
-    let
-        --p = parseType ps
-        --(Name pn _) = parentName p
-        --pcname      = mkName $ occString pn ++ "M"
-        --vars        = parentArgs p
-        cxt = [AppT (ConT $ mkName "Monad") (VarT m)]
-        --m = (appN' (ConT pcname) vars)
-        --m = ConT $ mkName "Identity"
-        ty  = AppT (AppT (AppT (ConT $ mkName "Object") obj) st) (VarT m)
-        ost = TySynInstD (mkName "ObjSt") $ TySynEqn [obj] st
-        cl1 = Clause [VarP $ mkName "obj", ConP (mkName "MkMethod") [WildP, VarP $ mkName "e"]] (NormalB $ AppE (ConE $ mkName "MkExtCall") (AppE (VarE $ mkName "e") (VarE $ mkName "obj"))) []
-        eqn = FunD (mkName ".!") [cl1]
-        ds  = [ost, eqn]
-    fams <- genObjectTypeInsts obj st
-    return $ InstanceD cxt ty ds : fams
-genObjectInstance _ = return []
+        cxt = []
+        cn  = mkName $ name ++ "Like"
+        on  = mkName name
+        sn  = mkName $ name ++ "State"
+        bt  = ConT $ mkName "Identity" 
+        ty  = appN (AppT (AppT (AppT (ConT cn) (ConT on)) (ConT sn)) bt) vars
+        fam = TySynInstD (mkName $ name ++ "St") $ TySynEqn [ConT on] (ConT sn)
+    invk <- genInvokeDef name
+    mods <- genModsDefs Invoke name ds
+    ms   <- genMethodsDefs Invoke env cls decl methods mp name
+    return $ InstanceD cxt ty ([fam,invk] ++ mods ++ ms)-}
 
 -- TODO: do this recursively
 -- TODO: method bodies
-genParentalInstance :: StateDecl -> StateDecl -> Q [Dec] 
+{-genParentalInstance :: StateDecl -> StateDecl -> Q [Dec] 
 genParentalInstance sub parent = do
     let
         cxt = []
@@ -246,19 +309,11 @@ genParentalInstance sub parent = do
         -- TODO: not sure if the parameters should be from the parent or inferred from the parent type?
         ty  = foldl AppT (ConT cn) ([ConT on, ConT sn, bt] ++ map (VarT . mkName) (stateParams parent))
         idty = foldl AppT (ConT cn) ([ConT on, ConT sn, ConT $ mkName "Identity"] ++ map (VarT . mkName) (stateParams parent))
-    return [ InstanceD cxt ty []
-           , InstanceD cxt idty []]
-
-genParentalInstanceFromInfo :: StateDecl -> Info -> Q Dec 
-genParentalInstanceFromInfo sub (ClassI (ClassD _ cn vars _ _) _) = do
-    ps <- replicateM (length vars - 3) (newName "p")
-    let
-        cxt = []
-        on  = mkName (stateName sub)
-        sn  = mkName $ (stateName sub) ++ "State"
-        bt  = getBaseMonad (stateParentN sub) -- TODO: THIS IS WRONG! 
-        ty  = appN (AppT (AppT (AppT (ConT cn) (ConT on)) (ConT sn)) bt) (map nameBase ps) -- TODO: not sure if this should be parent or inferred from the parent type?
-    return $ InstanceD cxt ty []
+    rs <- case stateParent parent of 
+        Nothing  -> return []
+        (Just p) -> genParentalInstance sub p 
+    return $ [ InstanceD cxt ty []
+           , InstanceD cxt idty []] ++ rs-}
 
 -- | Generates instances of the parental type classes.
 genParentalInstances :: StateEnv -> StateDecl -> Q [Dec]
@@ -275,7 +330,15 @@ genStateInstances :: StateEnv -> Dec -> [Dec] -> StateDecl -> Q [Dec]
 genStateInstances env cls decs s = do
     -- generate the instance for the `Object' class -- one per state class
     obj <- genObjectInstance s
-    -- generate the primary instance
+    -- generate the primary instance (CLike C CData PMonad)
     p   <- genPrimaryInstance env cls decs s
-    ps  <- genParentalInstances env s
-    return $ (p : ps) ++ obj
+    -- generate the parental instances (PLike C CData AMonad)
+    ii  <- if isBaseClass s 
+           then return []
+           else do
+            -- generate the identity instance (CLike C CData Identity)
+            i  <- genIdentityInstance env cls decs s
+            -- generate the parental instances (PLike C CData PPMonad & PLike C CData Identity)
+            ps <- genParentalInstances env s
+            return $ i : ps
+    return $ [p] ++ ii ++ obj

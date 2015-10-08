@@ -6,6 +6,8 @@ module Language.MSH (
     module Control.Monad.State,
     module Language.MSH.QuasiQuoters,
     module Language.MSH.Selectors,
+    module Language.MSH.RuntimeError,
+    
     SetterContext(..),
     ValueContext(..),
     HasData(..),
@@ -21,11 +23,12 @@ import Control.Monad.Identity
 import Control.Monad.State hiding (state)
 import Language.MSH.QuasiQuoters
 import Language.MSH.Selectors
+import Language.MSH.RuntimeError
 
 class HasData obj d | obj -> d where
     extractData :: obj -> d 
 
-class Cast sup sub | sub -> sup where
+class Cast sub sup | sub -> sup where
     downcast :: sub -> sup
 
 class New obj where

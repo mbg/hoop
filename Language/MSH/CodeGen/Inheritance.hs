@@ -7,6 +7,7 @@ import Language.Haskell.TH.Syntax
 
 import Language.MSH.StateDecl 
 import Language.MSH.StateEnv
+import Language.MSH.MethodTable
 import Language.MSH.CodeGen.Shared
 import Language.MSH.CodeGen.Interop
 
@@ -54,3 +55,15 @@ isInheritedFromParent env p name = let pn = nameBase $ parentName $ parseType p 
 isInherited :: StateEnv -> Maybe String -> Name -> Q Bool
 isInherited env Nothing  name = return False
 isInherited env (Just p) name = isInheritedFromParent env p name
+
+declByParent :: Name -> StateDecl -> Bool
+declByParent _ (StateDecl { stateParent = Nothing })  = False 
+declByParent n (StateDecl { stateParent = (Just p) }) = 
+    M.member (nameBase n) (methodSigs $ stateMethods p) || declByParent n p
+
+-- | Determines whether a method is abstract.
+isAbstract :: Name -> StateDecl -> Bool
+isAbstract n (StateDecl { stateParent = Nothing, stateMethods = tbl }) = 
+    M.notMember (nameBase n) (methodDefs tbl)
+isAbstract n (StateDecl { stateParent = Just p, stateMethods = tbl }) =
+    M.notMember (nameBase n) (methodDefs tbl) && isAbstract n p
