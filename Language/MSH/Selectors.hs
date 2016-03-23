@@ -175,11 +175,11 @@ instance (Object obj st ctx, Object r st' Identity, m ~ Identity) =>
         (ig >>= \r -> let (r',s) = runIdentity (re r) in is s >> return r') 
         (\s -> eg s >>= \(r',s') -> let (r'',s'') = runIdentity (re r') in es s' s'' >>= \(_,s''') -> return (r'',s'''))
 
-    {-(.!) (MkField eg ig es is) (MkField reg rig res ris) = MkField
+    (.!) (MkField eg ig es is) (MkField reg rig res ris) = MkField
         undefined
         undefined
         undefined
-        undefined-}
+        undefined
 
 -- For `this':
 -- * run the internal call (if the selector on the RHS is a method)

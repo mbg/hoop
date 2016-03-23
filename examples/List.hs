@@ -74,8 +74,9 @@ state Program where
 instance Show (MList Int) where 
     show o = show $ result $ o.!toList
 
-test :: MList Int -> [Int]
-test l = let
+--test :: MList Int -> [Int]
+test  = let
+    l = new Nothing :: MList Int
     a = object (l.!insert 23)
     b = object (a.!insert 16)
     c = object (b.!insert 42)
