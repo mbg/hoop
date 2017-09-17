@@ -41,11 +41,11 @@ import Language.MSH.CodeGen.Constructors
 import Language.MSH.CodeGen.MiscInstances
 import Language.MSH.CodeGen.Inheritance
 
-genIdentityInstance :: Q Dec 
+genIdentityInstance :: Q Dec
 genIdentityInstance = do
     let
         ty = tuple []
-    return $ InstanceD [] ty []
+    return $ InstanceD Nothing [] ty []
 
 
 {-
@@ -54,7 +54,7 @@ genIdentityInstance = do
 
 -- | Appends "_lens" to the lens names
 lensLookup :: Name -> [Name] -> Name -> [DefName]
-lensLookup _ fs field = [TopName $ mkName $ nameBase field ++ "_lens"] 
+lensLookup _ fs field = [TopName $ mkName $ nameBase field ++ "_lens"]
 
 stateLensRules :: LensRules
 stateLensRules = lensRules -- { _fieldToDef = lensLookup }
@@ -76,13 +76,8 @@ genStateDecl env s@(StateDecl { stateParams = vars, stateBody = decls  }) = do
     return $ [d,t,o,c] ++ is ++ ls ++ [sctrDec cs] ++ ms ++ misc
 
 genStateDecls :: StateEnv -> Q [Dec]
-genStateDecls env = case runExcept $ buildStateGraph env of 
+genStateDecls env = case runExcept $ buildStateGraph env of
     (Left err)   -> fail $ show err
     (Right env') -> do
         dss <- mapM (genStateDecl env') (M.elems env')
         return $ concat dss
-
-
-
-
-

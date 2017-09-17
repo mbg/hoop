@@ -10,7 +10,7 @@ import qualified Data.Map as M
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.Constructor 
+import Language.MSH.Constructor
 import Language.MSH.StateDecl
 import Language.MSH.StateEnv
 import Language.MSH.CodeGen.Shared
@@ -21,16 +21,16 @@ import Language.MSH.CodeGen.Interop
 -}
 
 genCtrParams :: StateDecl -> Q [(String, Name)]
-genCtrParams (StateDecl { 
+genCtrParams (StateDecl {
     stateName = name,
-    stateData = ds 
+    stateData = ds
 }) = mapM (\(n,_) -> newName n >>= \v -> return (n,v)) (getFields ds)
 
 -- | This is a hack to change the names of type variables in imported types from
 --   unique names to unqualified names
-unqualifyName :: Name -> Name 
+unqualifyName :: Name -> Name
 unqualifyName (Name occ flavour) = case flavour of
-    NameU _ -> Name occ NameS 
+    NameU _ -> Name occ NameS
     _       -> Name occ flavour
 
 unqualifyBndr :: TyVarBndr -> TyVarBndr
@@ -58,13 +58,13 @@ genPCtrParams env pn = case M.lookup pn env of
         case mn of
             Nothing  -> fail $ "Constructor for `" ++ pn ++ "' is not in scope."
             (Just n) -> do
-                (VarI _ t _ _) <- reify n
+                (VarI _ t _) <- reify n
                 mapM (\t -> newName "arg" >>= \n -> return (t,n)) (typeArgs $ normaliseType t)
 
 genStateExpr :: StateDecl -> [(String, Name)] -> Exp
-genStateExpr (StateDecl { 
+genStateExpr (StateDecl {
     stateName = name,
-    stateData = ds 
+    stateData = ds
 }) vs = RecConE (mkName $ "Mk" ++ name ++ "State") baseFs
     where
         baseFs = [(mkName $ "_" ++ name ++ "_" ++ n, VarE v) | (n,v) <- vs]
@@ -72,20 +72,20 @@ genStateExpr (StateDecl {
 -- | Generates the internal constructor `_mkS' for a class `S'.
 genBaseConstructor :: StateEnv -> StateDecl -> Q StateCtr
 genBaseConstructor env s@(StateDecl { stateName = name, stateParentN = mp, stateData = ds }) = do
-    vs <- genCtrParams s 
-    ts <- map snd <$> getFieldTypes ds 
+    vs <- genCtrParams s
+    ts <- map snd <$> getFieldTypes ds
     let
         baseName = mkName $ "_mk" ++ name
         stateExp = genStateExpr s vs
         ps       = map (VarP . snd) vs
-    case mp of 
+    case mp of
         Nothing  -> do
             let
                 cn  = mkName $ name ++ "Data"
                 con = RecConE cn [(mkName $ "_" ++ name ++ "_data", stateExp)]
             return $ SCtr {
                 sctrDec   = FunD baseName [Clause ps (NormalB con) []],
-                sctrTypes = ts 
+                sctrTypes = ts
             }
         (Just p) -> do
             let
@@ -112,5 +112,5 @@ genSuperConstructor (StateDecl m name vars p decls) = do
     return $ FunD supName [Clause [] (NormalB supExp) []]-}
 
 genConstructors :: StateEnv -> StateDecl -> Q StateCtr
-genConstructors env s = 
+genConstructors env s =
     genBaseConstructor env s

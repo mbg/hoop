@@ -49,11 +49,11 @@ tuple2 a b = AppT (AppT (TupleT 2) a) b
 tuple :: [Type] -> Type
 tuple ts = appN' (TupleT $ length ts) ts
 
-renameParent :: (String -> String) -> Type -> Type 
+renameParent :: (String -> String) -> Type -> Type
 renameParent f (ConT (Name n _))          = ConT $ mkName $ f $ occString n
 renameParent f (AppT (ConT (Name n _)) a) = AppT (ConT $ mkName $ f $ occString n) a
 
-parentName :: Type -> Name 
+parentName :: Type -> Name
 parentName (ConT n)          = n
 parentName (AppT (ConT n) _) = n
 parentName _                 = error "parentName: Invalid parent type"
@@ -67,7 +67,7 @@ getFields [] = []
 getFields (StateDataDecl n me _ : ds) = case me of
     (Just e) -> (n,e) : getFields ds
     Nothing  -> (n,"undefined") : getFields ds
-getFields (_ : ds) = getFields ds
+--getFields (_ : ds) = getFields ds
 
 getFieldTypes :: [StateMemberDecl] -> Q [(String,Type)]
 getFieldTypes [] = return []
@@ -76,7 +76,7 @@ getFieldTypes (StateDataDecl n _ t : ds) = do
     return $ (n, parseType t) : ts
 
 -- | Applies a type `m' to the return type of a function.
-wrapMethodType :: Bool -> (Type -> Type) -> Type -> Type 
+wrapMethodType :: Bool -> (Type -> Type) -> Type -> Type
 wrapMethodType False m (ForallT tvs cxt t)  = wrapMethodType False m t
 wrapMethodType True  m (ForallT tvs cxt t)  = ForallT tvs cxt $ wrapMethodType True m t
 wrapMethodType k m (AppT (AppT ArrowT f) a) = AppT (AppT ArrowT f) (wrapMethodType k m a)

@@ -9,7 +9,7 @@ import Language.MSH.StateDecl
 import Language.MSH.StateEnv
 import Language.MSH.CodeGen.Shared
 import Language.MSH.CodeGen.Interop
-import Language.MSH.CodeGen.Inheritance 
+import Language.MSH.CodeGen.Inheritance
 
 {-
     Type class
@@ -54,7 +54,7 @@ genInvokeDecl tyvars c (SCV o s m) = do
         ctx   = [foldl AppT (ConT cname) ([VarT o', VarT d', base] ++ [VarT $ mkName n | n <- tyvars])]
         ovs   = appN (VarT o) tyvars
         ovs'  = appN (VarT o') tyvars
-        sigma = ovs' `arr` (ovs' `arr` AppT base (tuple [VarT r, ovs'])) `arr` ovs `arr` AppT (VarT m) (tuple [VarT r, ovs, ovs']) 
+        sigma = ovs' `arr` (ovs' `arr` AppT base (tuple [VarT r, ovs'])) `arr` ovs `arr` AppT (VarT m) (tuple [VarT r, ovs, ovs'])
         ty    = ForallT [PlainTV o', PlainTV d', PlainTV r] ctx sigma
     return $ SigD name ty
 
@@ -65,7 +65,7 @@ setterName :: String -> String
 setterName n = "_set_" ++ n
 
 fieldType :: Type -> Type -> Name -> Type -> Type
-fieldType ovs svs m ft = 
+fieldType ovs svs m ft =
     foldl AppT (ConT (mkName "Selector")) [PromotedT (mkName "Field"), ovs, svs, (VarT m), ft ]
 
 genModDeclsFor :: SCV -> [String] -> StateMemberDecl -> Q [Dec]
@@ -88,7 +88,7 @@ genModDeclsFor (SCV o s m) vars (StateDataDecl field _ typ) = do
         setterT' = ft `arr` AppT stt (TupleT 0)
         setter'  = SigD (mkName (setterName field ++ "'")) setterT'
         -- field
-        fieldT   = fieldType ovs svs m ft 
+        fieldT   = fieldType ovs svs m ft
         fieldS   = SigD (mkName field) fieldT
     return [getter,getter',setter,setter',fieldS]
 
@@ -98,15 +98,15 @@ genModsDecls scv vars fields = do
     return $ concat decls
 
 splitMethodType :: Type -> ([Type], Type)
-splitMethodType (ForallT tvs cxt t)          = splitMethodType t 
+splitMethodType (ForallT tvs cxt t)          = splitMethodType t
 splitMethodType (AppT (AppT ArrowT arg) ret) = (arg : args, ret')
     where
-        (args,ret') = splitMethodType ret 
+        (args,ret') = splitMethodType ret
 splitMethodType rt = ([],rt)
 
- 
 
-methodType :: Type -> Type -> Name -> [Type] -> Type -> Type 
+
+methodType :: Type -> Type -> Name -> [Type] -> Type -> Type
 methodType ovs svs m args rt = parameterise args st
     where
         st = foldl AppT (ConT (mkName "Selector")) [PromotedT (mkName "Method"), ovs, svs, VarT m, rt]
@@ -127,14 +127,14 @@ genMethodDecls' env mp (SCV o s m) vars name ty = do
         external = SigD (mkName $ "_icall_" ++ nameBase name) exty --(unwrapForalls ty inty)
         -- method
         (args,ret) = splitMethodType ty
-        mty      = methodType ovs svs m args ret 
+        mty      = methodType ovs svs m args ret
         method   = SigD name mty
     ov <- isInherited env mp name
     if ov then return []
     else return [external, internal, method]
 
 genMethodDecls :: StateEnv -> Maybe String -> SCV -> [String] -> Dec -> Q [Dec]
-genMethodDecls env mp scv vars (SigD name ty) = 
+genMethodDecls env mp scv vars (SigD name ty) =
     genMethodDecls' env mp scv vars name ty
 genMethodDecls _ _ _ _ _ = return []
 
@@ -155,7 +155,7 @@ genStateClass env tyvars fs (StateDecl {
         s   <- newName "s"
         m   <- newName "m"
         let
-            fam   = FamilyD TypeFam (mkName $ name ++ "St") ([PlainTV o] {- ++ tyvars -}) (Just (VarT $ mkName "p"))
+            fam   = OpenTypeFamilyD $ TypeFamilyHead (mkName $ name ++ "St") ([PlainTV o] {- ++ tyvars -}) (KindSig (VarT $ mkName "p")) Nothing
             scv   = SCV o s m
             cname = mkName $ name ++ "Like"
             vars = [PlainTV o, PlainTV s, PlainTV m] ++ tyvars

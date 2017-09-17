@@ -13,7 +13,7 @@ module Expr where
 
 import Language.MSH
 
-[state| 
+[state|
 abstract state Expr where
     eval :: Int
 
@@ -31,15 +31,25 @@ state Add : Expr where
 
     eval :: Int
     eval = do
-        l <- this.!left.!eval 
+        l <- this.!left.!eval
         r <- this.!right.!eval
         return (l+r)
+
+state Mul : Expr where
+    data mleft  :: Expr
+    data mright :: Expr
+
+    eval :: Int
+    eval = do
+        l <- this.!mleft.!eval
+        r <- this.!mright.!eval
+        return (l*r)
 |]
 
 v :: Val
 v = new 5
 
-e :: Expr 
+e :: Expr
 e = downcast v
 
 a :: Add

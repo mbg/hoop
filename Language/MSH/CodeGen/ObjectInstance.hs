@@ -16,14 +16,14 @@ genObjectTypeInsts obj st = do
     t <- VarT `fmap` newName "ty"
     return [ TySynInstD (mkName "QueryObject") $ TySynEqn [obj] obj
            , TySynInstD (mkName "QueryMonad")  $ TySynEqn [obj, m] m
-           , TySynInstD (mkName "QueryResult") $ TySynEqn [obj, t, s, m, r] 
-                (foldl AppT (ConT $ mkName "RunnableQuery") [ ConT (mkName "ExtCall")
-                                                            , obj, st, m, r ])]
+           , TySynInstD (mkName "QueryResult") $ TySynEqn [obj, t, s, m, r]
+                (foldl AppT (ConT $ mkName "RunnableQuery") [ {-ConT (mkName "ExtCall"),-}
+                                                             obj, st, m, r ])]
 
--- | `genObjectInstance decl' generates an instance of `Object' 
+-- | `genObjectInstance decl' generates an instance of `Object'
 --   for the state declaration `decl'. Note: only one such instance
 --   is needed per state decl.
-genObjectInstance :: StateDecl -> Q [Dec] 
+genObjectInstance :: StateDecl -> Q [Dec]
 genObjectInstance (StateDecl { stateName = name, stateParams = bars{-, stateParent = (Just ps)-} }) = do
     let
         obj = appN (ConT $ mkName name) bars
@@ -45,5 +45,5 @@ genObjectInstance (StateDecl { stateName = name, stateParams = bars{-, statePare
         eqn = FunD (mkName ".!") [cl1, cl2]
         ds  = [{- ost, -} eqn]
     fams <- genObjectTypeInsts obj st
-    return $ InstanceD cxt ty ds : fams
-genObjectInstance _ = return []
+    return $ InstanceD Nothing cxt ty ds : fams
+--genObjectInstance _ = return []

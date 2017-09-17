@@ -7,20 +7,22 @@ import Language.MSH.StateDecl
 import Language.MSH.CodeGen.Shared
 import Language.MSH.CodeGen.Interop
 
-supField :: String -> Type -> VarStrictType
-supField c pt = (fname, NotStrict, ftype)
+ns = Bang SourceNoUnpack NoSourceStrictness
+
+supField :: String -> Type -> VarBangType
+supField c pt = (fname, ns, ftype)
     where
         fname = mkName $ "_" ++ c ++ "_sup"
         ftype = pt
 
 dataField :: String -> [String] -> VarStrictType
-dataField c vars = (fname, NotStrict, ftype)
+dataField c vars = (fname, ns, ftype)
     where
         fname = mkName $ "_" ++ c ++ "_data"
         ftype = appN (ConT $ mkName $ c ++ "State") vars
 
 subField :: String -> Name -> [String] -> VarStrictType
-subField c s vars = (fname, NotStrict, ftype)
+subField c s vars = (fname, ns, ftype)
     where
         fname = mkName $ "_" ++ c ++ "_sub"
         ftype = appN (VarT s) vars
@@ -67,13 +69,13 @@ middleCtr name vars p  = do
     let
         cname = mkName $ name ++ "Middle"
     return $ ForallC [PlainTV s, PlainTV d] cxt $ RecC cname [
-        supField name p, 
-        dataField name vars, 
+        supField name p,
+        dataField name vars,
         subField name s vars]
 
 genObjectCtrs :: StateDecl -> Q [Con]
-genObjectCtrs (StateDecl { 
-    stateMod = m, 
+genObjectCtrs (StateDecl {
+    stateMod = m,
     stateName = name,
     stateParams = vars,
     stateParent = Nothing}) = do
@@ -83,12 +85,12 @@ genObjectCtrs (StateDecl {
             _          -> do
                 sctr <- startCtr name vars
                 return [dctr, sctr]
-genObjectCtrs (StateDecl { 
-    stateMod = m, 
+genObjectCtrs (StateDecl {
+    stateMod = m,
     stateName = name,
     stateParams = vars,
     stateParentN = (Just p) } ) = do
-        sctr <- startCtr name vars 
+        sctr <- startCtr name vars
         mctr <- middleCtr name vars (parseType p)
         dctr <- dataCtr name vars
         ectr <- endCtr name vars (parseType p)
@@ -102,6 +104,6 @@ genStateObject :: [TyVarBndr] -> StateDecl -> Q Dec
 genStateObject tyvars s@(StateDecl { stateName = name }) = do
     let
         -- unlike in the paper, we use just the name for the object
-        oname = mkName $ name {- ++ "Object" -} 
+        oname = mkName $ name {- ++ "Object" -}
     cs <- genObjectCtrs s
-    return $ DataD [] oname tyvars cs []
+    return $ DataD [] oname tyvars Nothing cs []

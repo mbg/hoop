@@ -12,8 +12,8 @@ import Language.MSH.CodeGen.Interop
 import Language.MSH.CodeGen.Shared
 
 genNewInstance :: StateCtr -> StateDecl -> Q Dec
-genNewInstance (SCtr (FunD cn [Clause ps _ _]) ts) (StateDecl { 
-    stateName = name, 
+genNewInstance (SCtr (FunD cn [Clause ps _ _]) ts) (StateDecl {
+    stateName = name,
     stateParams = vars
 }) = do
     ns <- mapM (\(VarP n) -> return n) ps
@@ -23,4 +23,4 @@ genNewInstance (SCtr (FunD cn [Clause ps _ _]) ts) (StateDecl {
         appCtr  = appEs (VarE cn) (map VarE ns)
         synInst = TySynInstD (mkName newArgsTypeName) $ TySynEqn [ty] (tuple ts)
         eq      = FunD (mkName newKwdName) [Clause [TupP ps] (NormalB appCtr) []]
-    return $ InstanceD [] (AppT ct ty) [synInst,eq]
+    return $ InstanceD Nothing [] (AppT ct ty) [synInst,eq]

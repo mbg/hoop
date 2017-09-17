@@ -9,7 +9,7 @@ import Language.Haskell.TH.Syntax
 
 import qualified Language.Haskell.Exts.Syntax as Syntax
 import qualified Language.Haskell.Exts.Parser as Exts
-import Language.Haskell.Exts.Extension
+import Language.Haskell.Exts.Extension as HS
 import Language.Haskell.Meta.Syntax.Translate (toType, toDecs, toExp)
 
 {-
@@ -17,26 +17,28 @@ import Language.Haskell.Meta.Syntax.Translate (toType, toDecs, toExp)
 -}
 
 -- | Haskell language extensions we want to allow
-extensions = map EnableExtension [GADTs, 
-    TypeFamilies, 
-    RankNTypes, 
-    FunctionalDependencies, 
-    ScopedTypeVariables,
-    MultiParamTypeClasses,
-    FlexibleInstances,
-    FlexibleContexts,
-    TypeOperators,
-    LambdaCase]
+extensions = map HS.EnableExtension [
+    HS.GADTs,
+    HS.TypeFamilies,
+    HS.RankNTypes,
+    HS.FunctionalDependencies,
+    HS.ScopedTypeVariables,
+    HS.MultiParamTypeClasses,
+    HS.FlexibleInstances,
+    HS.FlexibleContexts,
+    HS.TypeOperators,
+    HS.LambdaCase]
 
 -- | Configuration for the Haskell parser
-parseMode = Exts.ParseMode "" Haskell2010 extensions True True Nothing
+parseMode :: Exts.ParseMode
+parseMode = Exts.ParseMode "" Haskell2010 extensions True True Nothing True
 
 -- | Parses a string into a TH type
-parseType :: String -> Type 
+parseType :: String -> Type
 parseType = toType . Exts.fromParseResult . Exts.parseTypeWithMode parseMode
 
 parseDecs :: String -> [Dec]
-parseDecs xs = let (Syntax.Module _ _ _ _ _ _ ds) = Exts.fromParseResult $ Exts.parseModuleWithMode parseMode xs in toDecs ds
+parseDecs xs = let (Syntax.Module _ _ _ _ ds) = Exts.fromParseResult $ Exts.parseModuleWithMode parseMode xs in toDecs ds
 
-parseExp :: String -> Exp 
+parseExp :: String -> Exp
 parseExp = toExp . Exts.fromParseResult . Exts.parseExpWithMode parseMode
