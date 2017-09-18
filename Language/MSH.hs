@@ -7,7 +7,7 @@ module Language.MSH (
     module Language.MSH.QuasiQuoters,
     module Language.MSH.Selectors,
     module Language.MSH.RuntimeError,
-    
+
     SetterContext(..),
     ValueContext(..),
     HasData(..),
@@ -26,10 +26,10 @@ import Language.MSH.Selectors
 import Language.MSH.RuntimeError
 
 class HasData obj d | obj -> d where
-    extractData :: obj -> d 
+    extractData :: obj -> d
 
 class Cast sub sup | sub -> sup where
-    downcast :: sub -> sup
+    upcast :: sub -> sup
 
 class New obj where
     type Args obj :: *

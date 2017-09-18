@@ -5,8 +5,8 @@ module Language.MSH.Parsers (
 
 import Language.Haskell.TH
 
-import Text.Parsec.Char 
-import Text.ParserCombinators.Parsec 
+import Text.Parsec.Char
+import Text.ParserCombinators.Parsec
 
 import Control.Monad (void)
 
@@ -18,14 +18,16 @@ import Language.MSH.StateDecl
 import Language.MSH.NewExpr
 import Language.MSH.CodeGen.Interop (parseDecs)
 
-trim :: String -> String 
+import Debug.Trace
+
+trim :: String -> String
 trim = unpack . strip . pack
 
 isSpaceNoNL :: GenParser Char a Char
 isSpaceNoNL = satisfy (\c -> isSpace c && c /= '\n' && c /= '\r')
 
 -- | Parses state declarations
-parseStateDecl :: String -> Q (M.Map String StateDecl) 
+parseStateDecl :: String -> Q (M.Map String StateDecl)
 parseStateDecl code = case parse stateDecls "" code of
     (Left err) -> fail $ show err
     (Right r)  -> return r
@@ -66,14 +68,21 @@ final = string "final" >> return (Just Final)
 classModifier :: GenParser Char a (Maybe StateMod)
 classModifier = abstract <|> final <|> return Nothing
 
-parentClass :: GenParser Char a (Maybe String)
-parentClass = (char ':' >> manyTill anyChar (try $ string "where") >>= \r -> return $ Just (trim r)) <|> 
-              (string "where" >> return Nothing)
+parentClass :: GenParser Char a (Maybe String, [String])
+parentClass = (do char ':'
+                  spaces
+                  ctr <- ctrid
+                  spaces
+                  tyvars <- many (try tyVar)
+                  spaces
+                  string "where"
+                  return $ (Just ctr,tyvars))
+          <|> (string "where" >> return (Nothing, []))
 
 dataInit :: GenParser Char a String
 dataInit = do
     string "="
-    spaces 
+    spaces
     r <- manyTill anyChar (try $ string "::") -- TODO: improve this, so that it takes the last ::
     return r
 
@@ -107,7 +116,7 @@ emptyLine = do
     void endOfLine {-<|> eof-}
     return "\n"
 
-valueDecl :: GenParser Char a String 
+valueDecl :: GenParser Char a String
 valueDecl = do
     ls <- many (valueLine <|> emptyLine)
     --error $ concat ls
@@ -116,9 +125,9 @@ valueDecl = do
 stateMember :: GenParser Char a StateMemberDecl
 stateMember = do
     spaces
-    dataDecl 
+    dataDecl
 
-stateDecl :: GenParser Char a StateDecl 
+stateDecl :: GenParser Char a StateDecl
 stateDecl = do
     spaces
     mod <- classModifier
@@ -128,22 +137,24 @@ stateDecl = do
     id <- ctrid
     spaces
     tyvars <- many (try tyVar)
-    p <- parentClass
+    spaces
+    (p,ps) <- parentClass
     many isSpaceNoNL
     many newline
-    ms <- many $ try stateMember 
+    ms <- many $ try stateMember
     vm <- valueDecl
-    let 
+    let
         body = parseDecs vm
     return $ StateDecl {
-        stateMod     = mod,
-        stateName    = trim id,
-        stateParams  = tyvars,
-        stateParentN = p,
-        stateParent  = Nothing,
-        stateData    = ms,
-        stateBody    = body,
-        stateMethods = preProcessMethods body
+        stateMod      = mod,
+        stateName     = trim id,
+        stateParams   = tyvars,
+        stateParentN  = p,
+        stateParentPs = ps,
+        stateParent   = Nothing,
+        stateData     = ms,
+        stateBody     = body,
+        stateMethods  = preProcessMethods body
     }
 
 stateDecls :: GenParser Char a (M.Map String StateDecl)

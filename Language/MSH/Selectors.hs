@@ -28,6 +28,9 @@ result (MkExtCall call) = fst $ runIdentity call
 object :: (ctx ~ Identity) => RunnableQuery obj st ctx r -> obj
 object (MkExtCall call) = snd $ runIdentity call
 
+--value :: Selector Field o s m a -> a
+--value (MkField eg _ _ _) = eg
+
 -- | Enumerates types of object class members.
 data MemberType = Method | Field
 

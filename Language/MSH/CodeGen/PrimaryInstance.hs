@@ -4,18 +4,20 @@ module Language.MSH.CodeGen.PrimaryInstance (
     genParentalInstance
 ) where
 
+import Debug.Trace
+
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
 import Language.MSH.StateEnv
 import Language.MSH.StateDecl
-import Language.MSH.CodeGen.Shared (renameParent)
+import Language.MSH.CodeGen.Shared (renameParent, appN)
 import Language.MSH.CodeGen.SharedInstance
 import Language.MSH.CodeGen.Interop (parseType)
 
-getBaseMonad :: Maybe String -> Type
-getBaseMonad Nothing  = ConT $ mkName "Identity"
-getBaseMonad (Just p) = renameParent (\n -> n ++ "M") $ parseType p
+getBaseMonad :: Maybe String -> [String] -> Type
+getBaseMonad Nothing  _  = ConT $ mkName "Identity"
+getBaseMonad (Just p) vs = appN (renameParent (\n -> n ++ "M") $ parseType p) vs
 
 genPrimaryInstance :: StateEnv -> Dec -> [Dec] -> StateDecl -> Q Dec
 genPrimaryInstance env cls decs decl@(StateDecl {
@@ -23,6 +25,7 @@ genPrimaryInstance env cls decs decl@(StateDecl {
     stateParams  = vars,
     stateData    = ds,
     stateParentN  = mp,
+    stateParentPs = ps,
     stateMethods = methods
 }) = do
     let
@@ -30,11 +33,11 @@ genPrimaryInstance env cls decs decl@(StateDecl {
         cn  = mkName $ name ++ "Like"
         on  = mkName name
         sn  = mkName $ name ++ "State"
-        bt  = getBaseMonad mp
+        bt  = getBaseMonad mp ps
         ty  = foldl AppT (AppT (AppT (AppT (ConT cn) (ConT on)) (ConT sn)) bt) (map (VarT . mkName) vars)
         fam = TySynInstD (mkName $ name ++ "St") $ TySynEqn [ConT on] (ConT sn)
     invk <- genInvokeDef name
-    mods <- genFields decl PrimaryInst
+    mods <- genFields decl decl PrimaryInst
     ms   <- genMethods PrimaryInst decl decl methods name
     return $ InstanceD Nothing cxt ty ([fam,invk] ++ mods ++ ms)
 
@@ -55,28 +58,29 @@ genIdentityInstance env cls decs decl@(StateDecl {
         ty  = foldl AppT (AppT (AppT (AppT (ConT cn) (ConT on)) (ConT sn)) bt) (map (VarT . mkName) vars)
         fam = TySynInstD (mkName $ name ++ "St") $ TySynEqn [ConT on] (ConT sn)
     invk <- genInvokeDef name
-    fs   <- genFields decl IdentityInst
+    fs   <- genFields decl decl IdentityInst
     ms   <- genMethods IdentityInst decl decl methods name
     return $ InstanceD Nothing cxt ty ([fam,invk] ++ fs ++ ms)
 
 genParentalInstance :: StateDecl -> StateDecl -> Q [Dec]
-genParentalInstance sub parent = do
+genParentalInstance sub parent = trace ("Generating parental (secondary) instance of " ++ stateName parent ++ " for " ++ stateName sub) $ do
     let
         cxt = []
         cn  = mkName $ (stateName parent) ++ "Like"
         on  = mkName (stateName sub)
         sn  = mkName $ (stateName sub) ++ "State"
-        bt  = getBaseMonad (stateParentN sub)
+        bt  = getBaseMonad (stateParentN sub) (stateParentPs sub)
         -- TODO: not sure if the parameters should be from the parent or inferred from the parent type?
         ps  = map (VarT . mkName) (stateParams parent)
         ty  = foldl AppT (ConT cn) ([ConT on, ConT sn, bt] ++ ps)
         idty = foldl AppT (ConT cn) ([ConT on, ConT sn, ConT $ mkName "Identity"] ++ ps)
-    fs <- genFields parent SecondaryInst
+    fs <- genFields parent sub SecondaryInst
     ms <- genMethods SecondaryInst parent sub (stateMethods sub) (stateName parent)
-    ifs <- genFields parent IdentityInst
+    ifs <- genFields parent sub IdentityInst
     ims <- genMethods IdentityInst parent sub (stateMethods sub) (stateName parent)
     rs <- case stateParent parent of
         Nothing  -> return []
         (Just p) -> genParentalInstance sub p
-    return $ [InstanceD Nothing cxt ty (fs ++ ms)
-           , InstanceD Nothing cxt idty (ifs ++ ims)] ++ rs
+    return $ [ InstanceD Nothing cxt ty (fs ++ ms)
+             , InstanceD Nothing cxt idty (ifs ++ ims)
+             ] ++ rs

@@ -46,7 +46,7 @@ isInheritedFromParent env p name = let pn = nameBase $ parentName $ parseType p 
     Nothing  -> do
         mn <- lookupTypeName (pn ++ "Like")
         case mn of
-            Nothing  -> fail $ "`" ++ pn ++ "' is not in scope."
+            Nothing  -> fail $ "Can't inherit from `" ++ pn ++ "': it is not in scope."
             (Just n) -> do
                 i <- reify n
                 isInheritedFromInfo env i name

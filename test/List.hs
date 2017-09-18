@@ -10,6 +10,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module List where
 
@@ -26,6 +27,9 @@ state MListItem a where
             Nothing  -> next <: Just item
             (Just n) -> next <: Just (object (n.!insertEnd item))
         return ()
+
+    setNext :: Maybe (MListItem a) -> Void
+    setNext item = next <: item
 
     toListItems :: [a]
     toListItems = do
@@ -57,6 +61,19 @@ state MList a where
             Nothing  -> return []
             (Just r) -> return $ result (r.!toListItems)
 
+state SList a : MList a where
+    data predicate :: a -> a -> Bool
+
+    insert :: a -> Void
+    insert val = do
+        let
+            item = new (val, Nothing)
+        switch root $ \x -> case x of
+            Nothing -> root <: Just item
+            Just r  -> do
+                p <- this.!predicate
+                root <: Just (helper val p r)
+
 state Program where
     data l :: MList Int
 
@@ -71,12 +88,27 @@ state Program where
         return r
 |]
 
+mkItem :: a -> MListItem a
+mkItem v = new (v, Nothing)
+
+-- TODO: subclasses currently do not generate parental methods,
+-- unless they override them. investigate why this is the case
+
+helper :: a -> (a -> a -> Bool) -> MListItem a -> MListItem a
+helper v p i =
+    let rv = result (i.!val)
+        item = mkItem v
+    in if p v rv then case result (i.!next) of
+            Nothing -> object (i.!setNext (Just item))
+            Just n  -> object (i.!setNext (Just $ helper v p n))
+       else object (item.!setNext (Just i))
+
 instance Show (MList Int) where
     show o = show $ result $ o.!toList
 
---test :: MList Int -> [Int]
-test  = let
-    l = new Nothing :: MList Int
+test :: MList Int -> [Int]
+test l = let
+    --l = new Nothing :: MList Int
     a = object (l.!insert 23)
     b = object (a.!insert 16)
     c = object (b.!insert 42)

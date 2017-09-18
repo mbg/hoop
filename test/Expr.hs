@@ -11,7 +11,11 @@
 
 module Expr where
 
+--------------------------------------------------------------------------------
+
 import Language.MSH
+
+--------------------------------------------------------------------------------
 
 [state|
 abstract state Expr where
@@ -50,7 +54,7 @@ v :: Val
 v = new 5
 
 e :: Expr
-e = downcast v
+e = upcast v
 
 a :: Add
 a = new (e,e)

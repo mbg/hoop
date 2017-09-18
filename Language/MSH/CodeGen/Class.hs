@@ -22,8 +22,8 @@ data SCV = SCV {
 }
 
 -- | Generates the context for the type class.
-genClassContext :: [String] -> Maybe Type -> SCV -> Q Cxt
-genClassContext vars Nothing (SCV o s m) = do
+genClassContext :: [String] -> Maybe Type -> [String] -> SCV -> Q Cxt
+genClassContext vars Nothing _ (SCV o s m) = do
     --return [foldl AppT (ConT $ mkName "Monad") [VarT m]]
     let
         cn = ConT $ mkName "Object"
@@ -34,12 +34,12 @@ genClassContext vars Nothing (SCV o s m) = do
         --ma = ConT $ mkName "Identity"
     return [foldl AppT cn [fa, sa, ma]]
     --return [foldl AppT (ConT $ mkName "Object") [appN (VarT o) vars, appN (VarT s) vars, VarT m]]
-genClassContext vars (Just p) (SCV o s m) = do
+genClassContext vars (Just p) vs (SCV o s m) = do
     return [foldl AppT (ConT pcname) vars]
         where
             (Name pn _) = parentName p
             pcname = mkName $ occString pn ++ "Like"
-            vars   = [VarT o, VarT s, VarT m] ++ parentArgs p
+            vars   = [VarT o, VarT s, VarT m] ++ map (VarT . mkName) vs
 
 -- | Generates the typing for the `invoke' function.
 genInvokeDecl :: [String] -> String -> SCV -> Q Dec
@@ -149,6 +149,7 @@ genStateClass env tyvars fs (StateDecl {
         stateName = name,
         stateParams = vs,
         stateParentN = p,
+        stateParentPs = pvs,
         stateData = ds
     }) = do
         o   <- newName "o"
@@ -160,7 +161,7 @@ genStateClass env tyvars fs (StateDecl {
             cname = mkName $ name ++ "Like"
             vars = [PlainTV o, PlainTV s, PlainTV m] ++ tyvars
             deps = [FunDep [o] [s], FunDep [s] [o]]
-        cxt <- genClassContext vs (parseType <$> p) scv
+        cxt <- genClassContext vs (parseType <$> p) pvs scv
         inv <- genInvokeDecl vs name scv
         mds <- genModsDecls scv vs ds
         ms  <- genMethodsDecls env p scv vs fs

@@ -104,7 +104,8 @@ genCastInstance :: StateDecl -> Q [Dec]
 genCastInstance s@(StateDecl {
     stateName = name,
     stateParams = vars,
-    stateParent = mp
+    stateParent = mp,
+    stateParentPs = ps
 }) = case mp of
     Nothing  -> return []
     (Just p) -> do
@@ -112,8 +113,9 @@ genCastInstance s@(StateDecl {
         let
             ct  = ConT $ mkName "Cast"
             ty  = appN (ConT $ mkName name) vars
-            dwn = FunD (mkName "downcast") body
-        return $ [InstanceD Nothing [] (AppT (AppT ct ty) (parseType (stateName p))) [dwn]]
+            dwn = FunD (mkName "upcast") body
+            pty = appN (parseType (stateName p)) ps
+        return $ [InstanceD Nothing [] (AppT (AppT ct ty) pty) [dwn]]
 
 
 genMiscInstances :: StateDecl -> Dec -> StateCtr -> Q [Dec]

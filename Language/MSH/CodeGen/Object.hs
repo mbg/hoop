@@ -7,6 +7,7 @@ import Language.MSH.StateDecl
 import Language.MSH.CodeGen.Shared
 import Language.MSH.CodeGen.Interop
 
+ns :: Bang
 ns = Bang SourceNoUnpack NoSourceStrictness
 
 supField :: String -> Type -> VarBangType
@@ -89,11 +90,13 @@ genObjectCtrs (StateDecl {
     stateMod = m,
     stateName = name,
     stateParams = vars,
-    stateParentN = (Just p) } ) = do
+    stateParentN = (Just p),
+    stateParentPs = ps } ) = do
+        let pt = appN (parseType p) ps
         sctr <- startCtr name vars
-        mctr <- middleCtr name vars (parseType p)
+        mctr <- middleCtr name vars pt
         dctr <- dataCtr name vars
-        ectr <- endCtr name vars (parseType p)
+        ectr <- endCtr name vars pt
         case m of
             Nothing       -> return [dctr, sctr, ectr, mctr]
             Just Abstract -> return [sctr, mctr]
