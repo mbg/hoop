@@ -69,6 +69,7 @@ library
     Language.MSH.Selectors
     Language.MSH.StateDecl
     Language.MSH.StateEnv
+    Language.MSH.Pretty
     Language.MSH.CodeGen.Class
     Language.MSH.CodeGen.Constructors
     Language.MSH.CodeGen.Data
@@ -86,6 +87,7 @@ library
     Language.MSH.CodeGen.PrimaryInstance
     Language.MSH.CodeGen.Shared
     Language.MSH.CodeGen.SharedInstance
+    Language.MSH.CodeGen.Invoke
 
   -- LANGUAGE extensions used by modules in this package.
   default-extensions:
@@ -103,7 +105,8 @@ library
     lens >=4.10,
     mtl >= 2.1,
     containers,
-    text
+    text,
+    pretty
 
   -- Directories containing source files.
   hs-source-dirs:
@@ -118,7 +121,7 @@ test-suite msh-test
     hs-source-dirs:     test
     main-is:            Spec.hs
     other-modules:
-        Counter, Expr, List, Stack
+        Counter, Expr, Expr2, List, Stack
     build-depends:
         base, msh, hspec
    ghc-options:         -threaded -rtsopts -with-rtsopts=-N

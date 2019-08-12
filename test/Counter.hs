@@ -8,6 +8,7 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# OPTIONS_GHC -ddump-splices -ddump-to-file #-}
 
 module Counter where
 
@@ -32,3 +33,9 @@ state NameGen : Counter where
         p <- this.!prefix
         return (p ++ show n)
 |]
+
+c :: Counter
+c = new 0 
+
+ng :: NameGen
+ng = new (0,"var")

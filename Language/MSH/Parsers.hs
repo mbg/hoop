@@ -154,7 +154,7 @@ stateDecl = do
         stateParent   = Nothing,
         stateData     = ms,
         stateBody     = body,
-        stateMethods  = preProcessMethods body
+        stateMethods  = emptyMethodTable -- preProcessMethods body
     }
 
 stateDecls :: GenParser Char a (M.Map String StateDecl)

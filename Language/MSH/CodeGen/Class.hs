@@ -41,22 +41,22 @@ genClassContext vars (Just p) vs (SCV o s m) = do
             pcname = mkName $ occString pn ++ "Like"
             vars   = [VarT o, VarT s, VarT m] ++ map (VarT . mkName) vs
 
--- | Generates the typing for the `invoke' function.
-genInvokeDecl :: [String] -> String -> SCV -> Q Dec
-genInvokeDecl tyvars c (SCV o s m) = do
-    o' <- newName "o'"
-    d' <- newName "d'"
-    r  <- newName "r"
-    let
-        name  = mkName $ "_" ++ c ++ "_invoke"
-        cname = mkName $ c ++ "Like"
-        base  = AppT (AppT (ConT (mkName "StateT")) (appN (VarT s) tyvars)) (VarT m)
-        ctx   = [foldl AppT (ConT cname) ([VarT o', VarT d', base] ++ [VarT $ mkName n | n <- tyvars])]
-        ovs   = appN (VarT o) tyvars
-        ovs'  = appN (VarT o') tyvars
-        sigma = ovs' `arr` (ovs' `arr` AppT base (tuple [VarT r, ovs'])) `arr` ovs `arr` AppT (VarT m) (tuple [VarT r, ovs, ovs'])
-        ty    = ForallT [PlainTV o', PlainTV d', PlainTV r] ctx sigma
-    return $ SigD name ty
+-- -- | Generates the typing for the `invoke' function.
+-- genInvokeDecl :: [String] -> String -> SCV -> Q Dec
+-- genInvokeDecl tyvars c (SCV o s m) = do
+--     o' <- newName "o'"
+--     d' <- newName "d'"
+--     r  <- newName "r"
+--     let
+--         name  = mkName $ "_" ++ c ++ "_invoke"
+--         cname = mkName $ c ++ "Like"
+--         base  = AppT (AppT (ConT (mkName "StateT")) (appN (VarT s) tyvars)) (VarT m)
+--         ctx   = [foldl AppT (ConT cname) ([VarT o', VarT d', base] ++ [VarT $ mkName n | n <- tyvars])]
+--         ovs   = appN (VarT o) tyvars
+--         ovs'  = appN (VarT o') tyvars
+--         sigma = ovs' `arr` (ovs' `arr` AppT base (tuple [VarT r, ovs'])) `arr` ovs `arr` AppT (VarT m) (tuple [VarT r, ovs, ovs'])
+--         ty    = ForallT [PlainTV o', PlainTV d', PlainTV r] ctx sigma
+--     return $ SigD name ty
 
 getterName :: String -> String
 getterName n = "_get_" ++ n
@@ -162,7 +162,7 @@ genStateClass env tyvars fs (StateDecl {
             vars = [PlainTV o, PlainTV s, PlainTV m] ++ tyvars
             deps = [FunDep [o] [s], FunDep [s] [o]]
         cxt <- genClassContext vs (parseType <$> p) pvs scv
-        inv <- genInvokeDecl vs name scv
+        -- inv <- genInvokeDecl vs name scv
         mds <- genModsDecls scv vs ds
         ms  <- genMethodsDecls env p scv vs fs
-        return $ ClassD cxt cname vars deps ([fam,inv] ++ mds ++ ms)
+        return $ ClassD cxt cname vars deps ([fam {-,inv -} ] ++ mds ++ ms)

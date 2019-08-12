@@ -11,6 +11,8 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
 
+{-# OPTIONS_GHC -ddump-splices -ddump-to-file #-}
+
 module Stack where
 
 import Language.MSH
@@ -29,9 +31,9 @@ state Stack a where
  
     pop :: a
     pop = do
-        (x:xs) <- this.!stack
-        stack <: xs
-        return x
+        xs <- this.!stack
+        stack <: (tail xs)
+        return (head xs)
 |]
 
 instance Show a => Show (Stack a) where 
@@ -47,3 +49,7 @@ emptyStack = Stack []
 isEmptyStack :: Stack a -> Bool
 isEmptyStack (Stack []) = True
 isEmptyStack (Stack _)  = False
+
+example :: Int 
+example = let s = object (emptyStack.!pushMany [1,2,3])
+          in result (s.!pop)

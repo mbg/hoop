@@ -11,9 +11,11 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -ddump-splices -ddump-to-file #-}
 
 module List where
 
+import Debug.Trace
 import Language.MSH
 
 [state|
@@ -53,7 +55,6 @@ state MList a where
             (Just r) -> do
                 this.!root.$insertEnd item
                 return ()
-                --root <: Just (object (r.!insertEnd item))
 
     toList :: [a]
     toList = do
@@ -64,7 +65,7 @@ state MList a where
 state SList a : MList a where
     data predicate :: a -> a -> Bool
 
-    insert :: a -> Void
+    --insert :: a -> Void
     insert val = do
         let
             item = new (val, Nothing)
@@ -90,9 +91,6 @@ state Program where
 
 mkItem :: a -> MListItem a
 mkItem v = new (v, Nothing)
-
--- TODO: subclasses currently do not generate parental methods,
--- unless they override them. investigate why this is the case
 
 helper :: a -> (a -> a -> Bool) -> MListItem a -> MListItem a
 helper v p i =

@@ -10,7 +10,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# OPTIONS_GHC -ddump-splices -ddump-to-file #-}
 
-module Expr where
+module Expr2 where
 
 --------------------------------------------------------------------------------
 
@@ -29,23 +29,17 @@ state Val : Expr where
         r <- this.!val
         return r
 
-state Add : Expr where 
+abstract state BinOp : Expr where 
     data left :: Expr 
     data right :: Expr 
+    data opr :: Int -> Int -> Int
 
+state Add : BinOp where 
     eval = do 
         x <- this.!left.!eval 
         y <- this.!right.!eval 
-        return (x+y)
-
-state Mul : Expr where
-    data mleft  :: Expr
-    data mright :: Expr
-
-    eval = do
-        l <- this.!mleft.!eval
-        r <- this.!mright.!eval
-        return (l*r)
+        f <- this.!opr 
+        return (f x y)
 |]
 
 v :: Val
@@ -55,8 +49,12 @@ e :: Expr
 e = upcast v
 
 a :: Add
-a = new (e,e)
+a = new (e,e,(+))
+
+b :: BinOp 
+b = upcast a
 
 bar = (result $ v.!eval)
     + (result $ a.!eval)
     + (result $ e.!eval)
+    + (result $ b.!eval)

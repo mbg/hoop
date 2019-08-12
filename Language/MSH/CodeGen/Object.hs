@@ -99,7 +99,7 @@ genObjectCtrs (StateDecl {
         ectr <- endCtr name vars pt
         case m of
             Nothing       -> return [dctr, sctr, ectr, mctr]
-            Just Abstract -> return [sctr, mctr]
+            Just Abstract -> return [sctr, ectr, mctr]
             Just Final    -> return [dctr, ectr]
 
 -- | Generates the object type for a state declaration

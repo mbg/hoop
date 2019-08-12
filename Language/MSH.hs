@@ -15,12 +15,14 @@ module Language.MSH (
     New(..),
     Void,
     switch,
-    (<:)
+    (<:),
+    Identity(..)
 ) where
 
 import Control.Lens
 import Control.Monad.Identity
 import Control.Monad.State hiding (state)
+import Control.Monad.Fail
 import Language.MSH.QuasiQuoters
 import Language.MSH.Selectors
 import Language.MSH.RuntimeError
@@ -61,3 +63,6 @@ instance ValueContext (StateT s m val) val where
 switch :: Monad m => Selector ty o s m val -> (val -> StateT s m b) -> StateT s m b
 switch (MkMethod im em)      m = im >>= m
 switch (MkField eg ig es is) m = ig >>= m
+
+instance MonadFail Identity where 
+    fail = error 

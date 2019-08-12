@@ -1,9 +1,11 @@
+--------------------------------------------------------------------------------
+
 module Language.MSH.CodeGen.SharedInstance (
     ImplMode(..),
 
     genFields,
     genMethods,
-    genInvokeDef,
+    -- genInvokeDef,
     genInvoke,
     genRunStateT
 ) where
@@ -31,12 +33,18 @@ import Language.MSH.CodeGen.Inheritance
 
 -- | Enumerates different member generation modes.
 data ImplMode = PrimaryInst | SecondaryInst | IdentityInst
-    deriving Show
+    deriving (Eq, Show)
 
 {--------------------------------------------------------------------------
     Control flow
 --------------------------------------------------------------------------}
 
+-- `genTrace` @msg @exp generates a call to the trace function from Debug.Trace
+-- with the message @msg around the expression @exp.
+genTrace :: String -> Exp -> Exp
+genTrace msg e = AppE (AppE (VarE $ mkName "trace") (LitE $ StringL msg)) e
+
+-- `genUndefined` generates `undefined`.
 genUndefined :: Exp
 genUndefined = VarE $ mkName "undefined"
 
@@ -61,26 +69,28 @@ genInvoke pn obj exp st = foldl AppE (VarE invk_name) [obj, exp, st]
     where
         invk_name = mkName $ "_" ++ pn ++ "_invoke"
 
--- | Generates the implementation of the `_C_invoke' function.
---   The purpose of the `_C_invoke' functions is to allow a sub-class to
---   pass an arbitrary method to the super-class. It works as follows:
---
-genInvokeDef :: String -> Q Dec
-genInvokeDef n = do
-    s <- newName "s"
-    f <- newName "f"
-    o <- newName "o"
-    r <- newName "r"
-    d' <- newName "d'"
-    s' <- newName "s'"
-    let
-        name = mkName $ "_" ++ n ++ "_invoke"
-        fn   = mkName $ "_" ++ n ++ "_data"
-        ps   = [VarP s, VarP f, VarP o]
-        runs = BindS (TupP [TupP [VarP r, VarP s'], VarP d']) (genRunStateT (AppE (VarE f) (VarE s)) (AppE (VarE $ mkName "extractData") (VarE o)))
-        rets = AppE (VarE $ mkName "return") (TupE [VarE r, RecUpdE (VarE o) [(fn,VarE d')], VarE s'])
-        body = NormalB $ DoE [runs, NoBindS rets]
-    return $ FunD name [Clause ps body []]
+-- -- | Generates the implementation of the `_C_invoke' function.
+-- --   The purpose of the `_C_invoke' functions is to allow a sub-class to
+-- --   pass an arbitrary method to the super-class. It works as follows:
+-- --
+-- genInvokeDef :: String -> Q Dec
+-- genInvokeDef n = do
+--     s <- newName "s"
+--     f <- newName "f"
+--     o <- newName "o"
+--     r <- newName "r"
+--     d' <- newName "d'"
+--     s' <- newName "s'"
+--     let
+--         name = mkName $ "_" ++ n ++ "_invoke"
+--         fn   = mkName $ "_" ++ n ++ "_data"
+--         ps   = [VarP s, VarP f, VarP o]
+--         runs = BindS (TupP [TupP [VarP r, VarP s'], VarP d']) (genRunStateT (AppE (VarE f) (VarE s)) (AppE (VarE $ mkName "extractData") (VarE o)))
+--         rets = AppE (VarE $ mkName "return") (TupE [VarE r, RecUpdE (VarE o) [(fn,VarE d')], VarE s'])
+--         body = NormalB $ DoE [runs, NoBindS rets]
+--     return $ FunD name [Clause ps body []]
+
+--------------------------------------------------------------------------------
 
 genPrimaryClause :: StateDecl -> [Name] -> Exp -> (Exp -> Exp) -> StateObjCtr -> Q Clause
 genPrimaryClause decl args call exp DataCtr = do
@@ -274,6 +284,7 @@ genFields dec instanceOf mode =
     Methods
 --------------------------------------------------------------------------}
 
+-- | `findClassMethodType` @decs @
 findClassMethodType :: [Dec] -> String -> Type
 findClassMethodType [] m = error $ "Method not defined: " ++ m
 findClassMethodType (SigD n t : ds) m
@@ -317,22 +328,73 @@ genMethodClauses SecondaryInst decl instanceOf iname ename vs = mapM (genPrimary
         call = foldl AppE (VarE iname) (map VarE vs)
         exp  = \s -> foldl AppE (AppE (VarE ename) s) (map VarE vs)
 
-genMethod' :: ImplMode -> StateDecl -> StateDecl -> MethodTable -> String -> String -> Type -> Q [Dec]
-genMethod' mode decl instanceOf tbl cn name typ = do
+genInheritedClauses :: ImplMode -> Name -> Bool -> Q [Clause]
+genInheritedClauses SecondaryInst mname abstract 
+    | abstract = return [Clause [] (NormalB (AppE (VarE $ mkName "error") (VarE $ mkName "_msh_rt_invalid_call_abstract"))) []]
+    | otherwise = return [Clause [] (NormalB (lifted $ VarE mname)) []] 
+genInheritedClauses IdentityInst mname _ = do
+    return [Clause [] (NormalB (AppE (VarE $ mkName "error") (VarE $ mkName "_msh_rt_invalid_call_internal"))) []]
+
+genInheritedMethod :: ImplMode -> StateDecl -> StateDecl -> MethodTable -> String -> String -> Type -> Bool -> Q [Dec]
+genInheritedMethod mode decl instanceOf tbl cn name typ abstract = trace ("genInheritedMethod:" ++ name) $ do
+    if isGenesisIn name (stateMethods decl)
+    then trace (name ++ " is first defined in " ++ (stateName decl) ++ ":" ++ (stateName instanceOf)) $ do
+        let
+            -- count the number of arguments the method has
+            argc = countTypeArgs typ
+            -- construct the name for external calls
+            ename = mkName $ "_ecall_" ++ name
+            -- construct the name for internal calls
+            iname = mkName $ "_icall_" ++ name
+            -- the name of the inherited method (this should refer to the actual
+            -- implementation rather than a handle so that it can be lifted)
+            mname    = mkName $ "_" ++ (stateName decl) ++ "_" ++ name
+        -- generate fresh variables for the parameters of the method
+        vs <- replicateM argc (newName "v")
+        -- generate the clauses for the external call
+        eclauses <- genMethodClauses mode decl instanceOf iname ename vs
+        -- generate the clauses for the internal call
+        iclauses <- genInheritedClauses mode mname abstract
+        let
+            -- generate the function definition for the external call
+            external = FunD ename eclauses
+
+            {-iclauses = if isAbstract (mkName name) instanceOf
+                       then [Clause [] (NormalB (AppE (VarE $ mkName "error") (VarE $ mkName "_msh_rt_invalid_call_abstract"))) []]
+                       else if isImplemented (mkName name) tbl
+                            then [Clause [] (NormalB (VarE mname)) []]
+                            else [Clause [] (NormalB (lifted $ VarE mname)) []]-}
+            internal = FunD iname iclauses
+            -- method
+            iwrapper = genInternalWrapper iname vs
+            ewrapper = genExternalWrapper ename vs
+            swrapper = genSelectorWrapper vs (foldl AppE (ConE $ mkName "MkMethod") [iwrapper, ewrapper])
+            mclauses = [Clause [] (NormalB swrapper) []]
+            method   = FunD (mkName $ name) mclauses
+        trace (show ename ++ show mode) $ return [external, internal, method]
+    else trace (name ++ " is not genesis in " ++ (stateName decl) ++ ":" ++ (stateName instanceOf)) $ return []
+
+-- | Generates a method handler
+genGenesisMethod :: ImplMode -> StateDecl -> StateDecl -> MethodTable -> String -> String -> Type -> Q [Dec]
+genGenesisMethod mode decl instanceOf tbl cn name typ = trace ("genGenesisMethod:" ++ name) $ do
     -- if this method was declared by a parent, it belongs to
     -- a different type, so we don't implement it here
-    if declByParent (mkName name) decl then return []
-    else do
+    if not (isGenesisIn name (stateMethods decl)) -- declByParent (mkName name) decl || not (M.member name (methods $ stateMethods decl))
+    then trace ("**** Declared by other class: " ++ name) $ return []
+    else trace ("genGenesisMethod (" ++ stateName decl ++ "," ++ stateName instanceOf ++  "): " ++ name ++ "is proceeding") $ do
         let
+            -- count the number of arguments the method has
             argc = countTypeArgs typ -- numArgsForMethod cls ("_icall_" ++ name)
-            -- external call name
-            ename    = mkName $ "_ecall_" ++ name
-            -- internal call name
-            iname    = mkName $ "_icall_" ++ name
-        vs   <- replicateM argc (newName "v")
+            -- construct the name for external calls
+            ename = mkName $ "_ecall_" ++ name
+            -- construct the name for internal calls
+            iname = mkName $ "_icall_" ++ name
+        -- generate fresh variables for the parameters of the method
+        vs <- replicateM argc (newName "v")
+        -- generate the clauses for the external call
         eclauses <- genMethodClauses mode decl instanceOf iname ename vs
         let
-            -- external
+            -- generate the function definition for the external call
             external = FunD ename eclauses
             -- internal
             mname    = mkName $ "_" ++ (stateName instanceOf) ++ "_" ++ name
@@ -350,15 +412,23 @@ genMethod' mode decl instanceOf tbl cn name typ = do
             method   = FunD (mkName $ name) mclauses
         trace (show ename ++ show mode) $ return [external, internal, method]
 
--- | `genMethod env cls mp cn d' generates a method for based on `d'.
-genMethod :: ImplMode -> StateDecl -> StateDecl -> MethodTable -> String -> (String, Dec) -> Q [Dec]
-genMethod mode decl instanceOf tbl cn (name, SigD _ ty)          =
-    genMethod' mode decl instanceOf tbl cn name ty
+-- | `genMethod` @env cls mp cn d@ generates a method for based on @d@.
+genMethod :: ImplMode -> StateDecl -> StateDecl -> MethodTable -> String -> (String, MethodEntry) -> Q [Dec]
+genMethod mode decl instanceOf tbl cn (name, GenesisMethod abst (Just (SigD _ ty)) mdef) 
+    | otherwise = genGenesisMethod mode decl instanceOf tbl cn name ty
+genMethod mode decl instanceOf tbl cn (name, OverridenMethod (SigD _ ty) def) =
+    trace (name ++ " is overriden") $ genGenesisMethod mode decl instanceOf tbl cn name ty
+genMethod mode decl instanceOf tbl cn (name, InheritedMethod abstract (SigD _ ty) mdef) =
+    genInheritedMethod mode decl instanceOf tbl cn name ty abstract
 --genMethodDef env tbl cls mp cn (FunD name _)          = genMethodDef' env cls mp cn (nameBase name)
 --genMethodDef env tbl cls mp cn (ValD (VarP name) _ _) = genMethodDef' env cls mp cn (nameBase name)
-genMethod _    _   _    _   _ _                         = return []
+genMethod mode decl instanceOf tbl cn (name,_)                         = 
+    trace ("!!! Not generating a method for " ++ name ++ " in " ++ stateName decl) $ return []
 
--- | Generates methods.
+-- | `genMethods` @impl decl instanceOf table className@ generates a list
+-- of method definitions
 genMethods :: ImplMode -> StateDecl -> StateDecl -> MethodTable -> String -> Q [Dec]
-genMethods mode decl instanceOf tbl cn = trace ("Generating methods: " ++ show (M.toList $ methodSigs tbl)) $
-    concat <$> mapM (genMethod mode decl instanceOf tbl cn) (M.toList $ methodSigs tbl)
+genMethods mode decl instanceOf tbl cn = trace ("Generating methods: " ++ show (M.toList $ methods tbl)) $
+    concat <$> mapM (genMethod mode decl instanceOf tbl cn) (M.toList $ methods tbl)
+
+--------------------------------------------------------------------------------

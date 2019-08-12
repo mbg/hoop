@@ -16,7 +16,7 @@ import Language.MSH.StateEnv
 import Language.MSH.CodeGen.Shared
 import Language.MSH.CodeGen.Interop
 import Language.MSH.CodeGen.Inheritance
-import Language.MSH.CodeGen.SharedInstance (genInvokeDef, genRunStateT, genInvoke)
+import Language.MSH.CodeGen.SharedInstance (genRunStateT, genInvoke)
 import Language.MSH.CodeGen.ObjectInstance (genObjectInstance)
 import Language.MSH.CodeGen.PrimaryInstance (genPrimaryInstance, genIdentityInstance, genParentalInstance)
 
@@ -317,9 +317,9 @@ genParentalInstance sub parent = do
 
 -- | Generates instances of the parental type classes.
 genParentalInstances :: StateEnv -> StateDecl -> Q [Dec]
-genParentalInstances _ (StateDecl { stateParent = Nothing }) = do
+genParentalInstances _ StateDecl{ stateParent = Nothing } =
     return []
-genParentalInstances env s@(StateDecl { stateParent = Just parent }) = do
+genParentalInstances env s@StateDecl{ stateParent = Just parent } = do
     genParentalInstance s parent
 
 -- | Generates type class instances for a state declaration

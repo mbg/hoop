@@ -56,14 +56,16 @@ isInherited :: StateEnv -> Maybe String -> Name -> Q Bool
 isInherited env Nothing  name = return False
 isInherited env (Just p) name = isInheritedFromParent env p name
 
-declByParent :: Name -> StateDecl -> Bool
-declByParent _ (StateDecl { stateParent = Nothing })  = False
-declByParent n (StateDecl { stateParent = (Just p) }) =
-    M.member (nameBase n) (methodSigs $ stateMethods p) || declByParent n p
-
--- | Determines whether a method is abstract.
+-- | `isAbstract` @name decl@ determines whether @name@ is abstract in @decl@.
 isAbstract :: Name -> StateDecl -> Bool
-isAbstract n (StateDecl { stateParent = Nothing, stateMethods = tbl }) =
-    M.notMember (nameBase n) (methodDefs tbl)
-isAbstract n (StateDecl { stateParent = Just p, stateMethods = tbl }) =
-    M.notMember (nameBase n) (methodDefs tbl) && isAbstract n p
+isAbstract n (StateDecl { {- stateParent = Nothing, -} stateMethods = tbl }) =
+    let nb = nameBase n
+    in case M.lookup (nameBase n) (methods tbl) of
+        Nothing -> error $ "[isAbstract] " ++ nb ++ " does not exist"
+        Just e -> abstractEntry e
+-- isAbstract n (StateDecl { stateParent = Just p, stateMethods = tbl }) =
+--     let nb = nameBase n
+--     in case M.lookup (nameBase n) (methods tbl) of
+--         Nothing -> isAbstract n p
+--         Just e -> abstractEntry e
+--     M.notMember (nameBase n) (methods tbl) && isAbstract n p
