@@ -36,6 +36,8 @@ default-extensions:
 - RecordWildCards
 
 library:
+  exposed-modules: 
+  - Language.MSH
   source-dirs: src
   ghc-options:
   - -Wall
