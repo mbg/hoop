@@ -1,0 +1,45 @@
+name: Build and Test
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    strategy: 
+      matrix:
+        resolver: 
+          - stack
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1  
+
+    - name: Install the Haskell Stack 
+      run: |
+        mkdir -p ~/.local/bin
+        curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+
+    - name: Cache .stack
+      id: cache-stack
+      uses: actions/cache@v1
+      with:
+        path: ~/.stack
+        key: ${{ runner.os }}-${{ matrix.resolver }}-${{ hashFiles(format('{0}.yaml', matrix.resolver)) }}
+        restore-keys: |
+            ${{ runner.os }}-${{ matrix.resolver }}
+            ${{ runner.os }}-
+
+    - name: Install GHC 
+      run: |
+        export PATH=$HOME/.local/bin:$PATH
+        stack --stack-yaml=${{ matrix.resolver }}.yaml --no-terminal --install-ghc setup
+
+    - name: Install dependencies
+      run: |
+        export PATH=$HOME/.local/bin:$PATH
+        stack --stack-yaml=${{ matrix.resolver }}.yaml --no-terminal test --only-dependencies --fast
+        
+    - name: Build and test
+      run: |
+        export PATH=$HOME/.local/bin:$PATH
+        stack --stack-yaml=${{ matrix.resolver }}.yaml --no-terminal test --fast
