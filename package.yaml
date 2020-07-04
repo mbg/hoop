@@ -1,5 +1,5 @@
 name:                hoop
-version:             0.3.0.0
+version:             0.3.0.1
 github:              mbg/hoop
 license:             MIT
 author:              Michael B. Gale
@@ -19,10 +19,10 @@ category:            Language
 description:         Library for object-oriented programming in Haskell.
 
 dependencies:
-- base >=4.7 && <5.0
-- template-haskell >= 2.9
+- base >=4.12 && <5.0
+- template-haskell >= 2.14 && < 2.15
 - haskell-src-exts >= 1.16
-- haskell-src-meta >= 0.6
+- haskell-src-meta >= 0.8
 - parsec >=3.1.9
 - lens >=4.10
 - mtl >= 2.1
