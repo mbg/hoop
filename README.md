@@ -1,5 +1,9 @@
 # hoop
 
+![GitHub](https://img.shields.io/github/license/mbg/hoop)
+![Haskell CI](https://github.com/mbg/hoop/workflows/Build%20and%20Test/badge.svg?branch=master)
+[![Hackage](https://img.shields.io/hackage/v/hoop)](https://hackage.haskell.org/package/hoop)
+
 A Haskell library for object-oriented programming which allows programmers to use objects in ordinary Haskell programs. In particular, the library achieves the following design objectives (to avoid ambiguity with Haskell's type classes, we refer to classes in the object-oriented sense as _object classes_):
 
 - No extensions to the Haskell language are required beyond what is already implemented in GHC. Object classes are generated from Template Haskell quasi quotations using an OO-like syntax where the methods are defined as ordinary Haskell expressions. 
@@ -10,6 +14,8 @@ A Haskell library for object-oriented programming which allows programmers to us
 - Class hierarchies are open for extension. I.e. the library does not need to know about all subclasses of a given class in order to generate the code for that class, allowing modular compilation.
 - Casting from subtype objects to their supertypes is supported and the types are correctly reflected in Haskell's type system (e.g. assuming that we have `Duck <: Bird` and that `obj :: Duck` then `upcast obj :: Bird`) and pure.
 - Type annotations are generally not required except where something would logically be ambiguous otherwise (e.g. instantiating an object with the `new` function).
+
+This library was previously called [msh](https://hackage.haskell.org/package/msh) and the new, much better name is thanks to Nicolas Wu!
 
 ## Examples
 
