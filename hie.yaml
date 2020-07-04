@@ -1,0 +1,10 @@
+cradle:
+    stack:
+    - path: './src'
+      component: 'hoop:lib'
+    - path: './test'
+      component: 'hoop:test:hoop-test'
+
+dependencies:
+- stack.yaml
+- package.yaml
