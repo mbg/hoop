@@ -39,14 +39,23 @@ state Add : Expr where
         return (x+y)
 |]
 
-someExpr :: Expr 
+someExpr :: Add 
 someExpr = new @Add (upcast $ new @Val 4, upcast $ new @Val 7)
 
-result :: Int 
-result = result (someExpr.!eval)
+someExprResult :: Int 
+someExprResult = result (someExpr.!eval)
 ```
 
-We can note two points of interest here that differ from popular object-oriented programming languages:
+If we evaluate `someExprResult`, the result is `11` as expected. We can note some points of interest here that differ from popular object-oriented programming languages:
 
+- The type annotations on `someExpr` and `someExprResult` are optional and just provided for clarity. The type applications for the calls to `new` are required (alternatively, type annotations on the sub-expression would work, too).
 - Casts must be explicit: in the example, the objects of type `Val` must be explicitly cast to `Expr` values to instantiate the `Add` object.
 - Since everything is pure, calling a method on an object produces two results: the result of the method call and a (potentially) updated object. The `result` function returns the result of calling `eval` on the `someExpr` object, discarding the resulting object.
+- It does not matter what type of object we call `eval` on, as long as it is of type `Expr` or is a sub-type of `Expr`.
+
+Indeed, we can cast the `Add` object to an `Expr` object, call `eval` on it, and still get the correct result:
+
+```haskell
+> let e = upcast someExpr in result (e.!eval)
+11
+```
