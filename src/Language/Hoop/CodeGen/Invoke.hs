@@ -3,16 +3,16 @@
 -- Copyright 2013-2019 Michael B. Gale (m.gale@warwick.ac.uk)                 --
 --------------------------------------------------------------------------------
 
-module Language.MSH.CodeGen.Invoke (genInvoke) where 
+module Language.Hoop.CodeGen.Invoke (genInvoke) where 
 
 --------------------------------------------------------------------------------
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.StateDecl
-import Language.MSH.CodeGen.Shared
-import Language.MSH.CodeGen.SharedInstance (genRunStateT)
+import Language.Hoop.StateDecl
+import Language.Hoop.CodeGen.Shared
+import Language.Hoop.CodeGen.SharedInstance (genRunStateT)
 
 --------------------------------------------------------------------------------
 

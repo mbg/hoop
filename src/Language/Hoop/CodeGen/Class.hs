@@ -1,15 +1,15 @@
-module Language.MSH.CodeGen.Class where
+module Language.Hoop.CodeGen.Class where
 
 import Control.Applicative ((<$>))
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.StateDecl
-import Language.MSH.StateEnv
-import Language.MSH.CodeGen.Shared
-import Language.MSH.CodeGen.Interop
-import Language.MSH.CodeGen.Inheritance
+import Language.Hoop.StateDecl
+import Language.Hoop.StateEnv
+import Language.Hoop.CodeGen.Shared
+import Language.Hoop.CodeGen.Interop
+import Language.Hoop.CodeGen.Inheritance
 
 {-
     Type class

@@ -1,10 +1,10 @@
-module Language.MSH.QuasiQuoters where
+module Language.Hoop.QuasiQuoters where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Quote
 
-import Language.MSH.Parsers
-import Language.MSH.CodeGen
+import Language.Hoop.Parsers
+import Language.Hoop.CodeGen
 
 state = QuasiQuoter {
     quoteExp  = undefined,

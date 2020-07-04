@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Language.MSH.CodeGen.Decls (
+module Language.Hoop.CodeGen.Decls (
     genStateDecls
 ) where
 
@@ -29,22 +29,22 @@ import qualified Language.Haskell.Exts.Parser as Exts
 import Language.Haskell.Exts.Extension
 import Language.Haskell.Meta.Syntax.Translate (toType, toDecs, toExp)
 
-import Language.MSH.StateDecl
-import Language.MSH.StateEnv
-import Language.MSH.Constructor
-import Language.MSH.Parsers
-import Language.MSH.CodeGen.Shared
-import Language.MSH.CodeGen.Interop
-import Language.MSH.CodeGen.Data
-import Language.MSH.CodeGen.Object
-import Language.MSH.CodeGen.Monad
-import Language.MSH.CodeGen.Class
-import Language.MSH.CodeGen.Instances (genStateInstances)
-import Language.MSH.CodeGen.Methods
-import Language.MSH.CodeGen.Constructors
-import Language.MSH.CodeGen.MiscInstances
-import Language.MSH.CodeGen.Inheritance
-import Language.MSH.CodeGen.Invoke
+import Language.Hoop.StateDecl
+import Language.Hoop.StateEnv
+import Language.Hoop.Constructor
+import Language.Hoop.Parsers
+import Language.Hoop.CodeGen.Shared
+import Language.Hoop.CodeGen.Interop
+import Language.Hoop.CodeGen.Data
+import Language.Hoop.CodeGen.Object
+import Language.Hoop.CodeGen.Monad
+import Language.Hoop.CodeGen.Class
+import Language.Hoop.CodeGen.Instances (genStateInstances)
+import Language.Hoop.CodeGen.Methods
+import Language.Hoop.CodeGen.Constructors
+import Language.Hoop.CodeGen.MiscInstances
+import Language.Hoop.CodeGen.Inheritance
+import Language.Hoop.CodeGen.Invoke
 
 --------------------------------------------------------------------------------
 

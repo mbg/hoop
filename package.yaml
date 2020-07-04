@@ -1,5 +1,5 @@
 name:                hoop
-version:             0.3.0.1
+version:             0.4.0.0
 github:              mbg/hoop
 license:             MIT
 author:              Michael B. Gale
@@ -37,7 +37,7 @@ default-extensions:
 
 library:
   exposed-modules: 
-  - Language.MSH
+  - Language.Hoop
   source-dirs: src
   ghc-options:
   - -Wall

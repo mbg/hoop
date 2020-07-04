@@ -1,12 +1,12 @@
-module Language.MSH.CodeGen.Shared where
+module Language.Hoop.CodeGen.Shared where
 
 import qualified Data.Map as M
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.StateDecl
-import Language.MSH.CodeGen.Interop
+import Language.Hoop.StateDecl
+import Language.Hoop.CodeGen.Interop
 
 typeArgs :: Type -> [Type]
 typeArgs (ForallT _ _ t)            = typeArgs t

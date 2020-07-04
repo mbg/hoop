@@ -1,12 +1,12 @@
-module Language.MSH.CodeGen.New (
+module Language.Hoop.CodeGen.New (
     genNewExp
 ) where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.NewExpr 
-import Language.MSH.CodeGen.Interop
+import Language.Hoop.NewExpr 
+import Language.Hoop.CodeGen.Interop
 
 genNewExp :: NewExpr -> Q Exp 
 genNewExp (NewExpr ty args) = do

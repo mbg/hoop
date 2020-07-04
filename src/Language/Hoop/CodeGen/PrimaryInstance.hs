@@ -1,4 +1,4 @@
-module Language.MSH.CodeGen.PrimaryInstance (
+module Language.Hoop.CodeGen.PrimaryInstance (
     genPrimaryInstance,
     genIdentityInstance,
     genParentalInstance
@@ -9,11 +9,11 @@ import Debug.Trace
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.StateEnv
-import Language.MSH.StateDecl
-import Language.MSH.CodeGen.Shared (renameParent, appN)
-import Language.MSH.CodeGen.SharedInstance
-import Language.MSH.CodeGen.Interop (parseType)
+import Language.Hoop.StateEnv
+import Language.Hoop.StateDecl
+import Language.Hoop.CodeGen.Shared (renameParent, appN)
+import Language.Hoop.CodeGen.SharedInstance
+import Language.Hoop.CodeGen.Interop (parseType)
 
 -- | Gets the name of the base monad. This is Identity for base classes
 -- or the parent class's monad type for subclasses

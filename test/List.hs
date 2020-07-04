@@ -16,7 +16,7 @@
 module List where
 
 import Debug.Trace
-import Language.MSH
+import Language.Hoop
 
 [state|
 state MListItem a where

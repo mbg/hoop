@@ -1,7 +1,7 @@
 --------------------------------------------------------------------------------
 
-module Language.MSH.StateDecl (
-    module Language.MSH.MethodTable,
+module Language.Hoop.StateDecl (
+    module Language.Hoop.MethodTable,
 
     StateMod(..),
     StateObjCtr(..),
@@ -25,8 +25,8 @@ import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import qualified Language.Haskell.TH.Ppr as Ppr
 
-import Language.MSH.MethodTable
-import Language.MSH.Pretty
+import Language.Hoop.MethodTable
+import Language.Hoop.Pretty
 
 --------------------------------------------------------------------------------
 

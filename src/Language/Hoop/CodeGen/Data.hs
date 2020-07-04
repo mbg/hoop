@@ -1,10 +1,10 @@
-module Language.MSH.CodeGen.Data where
+module Language.Hoop.CodeGen.Data where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.StateDecl
-import Language.MSH.CodeGen.Interop
+import Language.Hoop.StateDecl
+import Language.Hoop.CodeGen.Interop
 
 genDataField :: String -> String -> String -> Q VarStrictType
 genDataField cl name typ = do

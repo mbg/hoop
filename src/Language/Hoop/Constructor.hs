@@ -1,4 +1,4 @@
-module Language.MSH.Constructor where
+module Language.Hoop.Constructor where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax

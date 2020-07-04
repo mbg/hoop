@@ -1,4 +1,4 @@
-module Language.MSH.Parsers (
+module Language.Hoop.Parsers (
     parseStateDecl,
     parseNewExpr
 ) where
@@ -14,9 +14,9 @@ import Data.Char (isSpace)
 import Data.Text (pack, unpack, strip)
 import qualified Data.Map as M
 
-import Language.MSH.StateDecl
-import Language.MSH.NewExpr
-import Language.MSH.CodeGen.Interop (parseDecs)
+import Language.Hoop.StateDecl
+import Language.Hoop.NewExpr
+import Language.Hoop.CodeGen.Interop (parseDecs)
 
 import Debug.Trace
 

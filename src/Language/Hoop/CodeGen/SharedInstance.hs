@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
 
-module Language.MSH.CodeGen.SharedInstance (
+module Language.Hoop.CodeGen.SharedInstance (
     ImplMode(..),
 
     genFields,
@@ -24,10 +24,10 @@ import Data.Maybe (catMaybes)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.StateDecl
-import Language.MSH.StateEnv
-import Language.MSH.CodeGen.Shared (countTypeArgs)
-import Language.MSH.CodeGen.Inheritance
+import Language.Hoop.StateDecl
+import Language.Hoop.StateEnv
+import Language.Hoop.CodeGen.Shared (countTypeArgs)
+import Language.Hoop.CodeGen.Inheritance
 
 --------------------------------------------------------------------------------
 

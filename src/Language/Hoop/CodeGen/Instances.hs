@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Language.MSH.CodeGen.Instances where
+module Language.Hoop.CodeGen.Instances where
 
 import Control.Applicative ((<$>))
 import Control.Monad (replicateM)
@@ -11,14 +11,14 @@ import qualified Data.Map as M
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.StateDecl
-import Language.MSH.StateEnv
-import Language.MSH.CodeGen.Shared
-import Language.MSH.CodeGen.Interop
-import Language.MSH.CodeGen.Inheritance
-import Language.MSH.CodeGen.SharedInstance (genRunStateT, genInvoke)
-import Language.MSH.CodeGen.ObjectInstance (genObjectInstance)
-import Language.MSH.CodeGen.PrimaryInstance (genPrimaryInstance, genIdentityInstance, genParentalInstance)
+import Language.Hoop.StateDecl
+import Language.Hoop.StateEnv
+import Language.Hoop.CodeGen.Shared
+import Language.Hoop.CodeGen.Interop
+import Language.Hoop.CodeGen.Inheritance
+import Language.Hoop.CodeGen.SharedInstance (genRunStateT, genInvoke)
+import Language.Hoop.CodeGen.ObjectInstance (genObjectInstance)
+import Language.Hoop.CodeGen.PrimaryInstance (genPrimaryInstance, genIdentityInstance, genParentalInstance)
 
 {--------------------------------------------------------------------------
     Type class instances

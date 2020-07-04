@@ -3,7 +3,7 @@
 
 import Test.Hspec
 
-import Language.MSH
+import Language.Hoop
 import qualified Counter as C
 import qualified Expr as E
 import qualified Expr2 as E2

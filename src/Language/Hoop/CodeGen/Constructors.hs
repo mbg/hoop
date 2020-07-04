@@ -1,4 +1,4 @@
-module Language.MSH.CodeGen.Constructors (
+module Language.Hoop.CodeGen.Constructors (
     genConstructors
 ) where
 
@@ -10,11 +10,11 @@ import qualified Data.Map as M
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.Constructor
-import Language.MSH.StateDecl
-import Language.MSH.StateEnv
-import Language.MSH.CodeGen.Shared
-import Language.MSH.CodeGen.Interop
+import Language.Hoop.Constructor
+import Language.Hoop.StateDecl
+import Language.Hoop.StateEnv
+import Language.Hoop.CodeGen.Shared
+import Language.Hoop.CodeGen.Interop
 
 {-
     Constructors

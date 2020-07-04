@@ -1,11 +1,11 @@
-module Language.MSH.CodeGen.Object where
+module Language.Hoop.CodeGen.Object where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.StateDecl
-import Language.MSH.CodeGen.Shared
-import Language.MSH.CodeGen.Interop
+import Language.Hoop.StateDecl
+import Language.Hoop.CodeGen.Shared
+import Language.Hoop.CodeGen.Interop
 
 ns :: Bang
 ns = Bang SourceNoUnpack NoSourceStrictness

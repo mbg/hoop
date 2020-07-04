@@ -12,7 +12,7 @@
 
 module Counter where
 
-import Language.MSH
+import Language.Hoop
 
 [state| 
 state Counter where

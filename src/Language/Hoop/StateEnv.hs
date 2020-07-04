@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Language.MSH.StateEnv where
+module Language.Hoop.StateEnv where
 
 --------------------------------------------------------------------------------
 
@@ -12,8 +12,8 @@ import qualified Data.Map as M
 
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.StateDecl
-import Language.MSH.Pretty
+import Language.Hoop.StateDecl
+import Language.Hoop.Pretty
 
 --------------------------------------------------------------------------------
 

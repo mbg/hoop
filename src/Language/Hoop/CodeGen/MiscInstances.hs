@@ -1,15 +1,15 @@
-module Language.MSH.CodeGen.MiscInstances (
+module Language.Hoop.CodeGen.MiscInstances (
     genMiscInstances
 ) where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.StateDecl
-import Language.MSH.Constructor
-import Language.MSH.CodeGen.Interop
-import Language.MSH.CodeGen.Shared
-import Language.MSH.CodeGen.NewInstance
+import Language.Hoop.StateDecl
+import Language.Hoop.Constructor
+import Language.Hoop.CodeGen.Interop
+import Language.Hoop.CodeGen.Shared
+import Language.Hoop.CodeGen.NewInstance
 
 {-
     Misc. Instances

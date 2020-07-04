@@ -1,4 +1,4 @@
-module Language.MSH.BuiltIn where
+module Language.Hoop.BuiltIn where
 
 newClassName :: String 
 newClassName = "New"

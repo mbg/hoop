@@ -1,4 +1,4 @@
-module Language.MSH.CodeGen.Interop (
+module Language.Hoop.CodeGen.Interop (
     parseType,
     parseDecs,
     parseExp

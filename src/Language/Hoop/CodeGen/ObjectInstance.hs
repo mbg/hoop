@@ -1,12 +1,12 @@
-module Language.MSH.CodeGen.ObjectInstance (
+module Language.Hoop.CodeGen.ObjectInstance (
     genObjectInstance
 ) where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.StateDecl
-import Language.MSH.CodeGen.Shared
+import Language.Hoop.StateDecl
+import Language.Hoop.CodeGen.Shared
 
 genObjectTypeInsts :: Type -> Type -> Q [Dec]
 genObjectTypeInsts obj st = do

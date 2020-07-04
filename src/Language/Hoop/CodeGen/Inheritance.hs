@@ -1,15 +1,15 @@
-module Language.MSH.CodeGen.Inheritance where
+module Language.Hoop.CodeGen.Inheritance where
 
 import qualified Data.Map as M
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.StateDecl
-import Language.MSH.StateEnv
-import Language.MSH.MethodTable
-import Language.MSH.CodeGen.Shared
-import Language.MSH.CodeGen.Interop
+import Language.Hoop.StateDecl
+import Language.Hoop.StateEnv
+import Language.Hoop.MethodTable
+import Language.Hoop.CodeGen.Shared
+import Language.Hoop.CodeGen.Interop
 
 data HasMethodResult = DefResult Bool | ContResult String
 

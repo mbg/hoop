@@ -1,7 +1,7 @@
-module Language.MSH.CodeGen (
-    module Language.MSH.CodeGen.Decls,
-    module Language.MSH.CodeGen.New
+module Language.Hoop.CodeGen (
+    module Language.Hoop.CodeGen.Decls,
+    module Language.Hoop.CodeGen.New
 ) where
 
-import Language.MSH.CodeGen.Decls
-import Language.MSH.CodeGen.New
+import Language.Hoop.CodeGen.Decls
+import Language.Hoop.CodeGen.New

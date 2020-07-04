@@ -1,4 +1,4 @@
-module Language.MSH.MethodTable where
+module Language.Hoop.MethodTable where
 
 --------------------------------------------------------------------------------
 
@@ -7,7 +7,7 @@ import qualified Data.Map as M
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 import qualified Language.Haskell.TH.Ppr as Ppr
-import Language.MSH.Pretty
+import Language.Hoop.Pretty
 
 --------------------------------------------------------------------------------
 

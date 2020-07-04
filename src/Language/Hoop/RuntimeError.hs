@@ -1,4 +1,4 @@
-module Language.MSH.RuntimeError where
+module Language.Hoop.RuntimeError where
 
 _msh_rt_invalid_call_abstract :: String
 _msh_rt_invalid_call_abstract = "Invalid call: the method is abstract."

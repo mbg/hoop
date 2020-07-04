@@ -1,15 +1,15 @@
-module Language.MSH.CodeGen.NewInstance (
+module Language.Hoop.CodeGen.NewInstance (
     genNewInstance
 ) where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.Constructor
-import Language.MSH.BuiltIn
-import Language.MSH.StateDecl
-import Language.MSH.CodeGen.Interop
-import Language.MSH.CodeGen.Shared
+import Language.Hoop.Constructor
+import Language.Hoop.BuiltIn
+import Language.Hoop.StateDecl
+import Language.Hoop.CodeGen.Interop
+import Language.Hoop.CodeGen.Shared
 
 genNewInstance :: StateCtr -> StateDecl -> Q Dec
 genNewInstance (SCtr (FunD cn [Clause ps _ _]) ts) (StateDecl {

@@ -1,13 +1,13 @@
-module Language.MSH.CodeGen.Monad (
+module Language.Hoop.CodeGen.Monad (
     genStateType
 ) where
 
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax
 
-import Language.MSH.StateDecl
-import Language.MSH.CodeGen.Shared
-import Language.MSH.CodeGen.Interop
+import Language.Hoop.StateDecl
+import Language.Hoop.CodeGen.Shared
+import Language.Hoop.CodeGen.Interop
 
 import Debug.Trace
 

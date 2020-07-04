@@ -5,7 +5,7 @@
 {-# LANGUAGE DataKinds, FlexibleContexts #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Language.MSH.Selectors where
+module Language.Hoop.Selectors where
 
 --------------------------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-module Language.MSH.Pretty (
+module Language.Hoop.Pretty (
     module Text.PrettyPrint,
 
     Pretty(..),

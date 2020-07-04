@@ -1,12 +1,12 @@
 {-# LANGUAGE RankNTypes, MultiParamTypeClasses, FunctionalDependencies, FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies, DataKinds, KindSignatures, FlexibleInstances, DefaultSignatures #-}
-module Language.MSH (
+module Language.Hoop (
     module Control.Lens,
     module Control.Monad.Identity,
     module Control.Monad.State,
-    module Language.MSH.QuasiQuoters,
-    module Language.MSH.Selectors,
-    module Language.MSH.RuntimeError,
+    module Language.Hoop.QuasiQuoters,
+    module Language.Hoop.Selectors,
+    module Language.Hoop.RuntimeError,
 
     SetterContext(..),
     ValueContext(..),
@@ -23,9 +23,9 @@ import Control.Lens
 import Control.Monad.Identity
 import Control.Monad.State hiding (state)
 import Control.Monad.Fail
-import Language.MSH.QuasiQuoters
-import Language.MSH.Selectors
-import Language.MSH.RuntimeError
+import Language.Hoop.QuasiQuoters
+import Language.Hoop.Selectors
+import Language.Hoop.RuntimeError
 
 class HasData obj d | obj -> d where
     extractData :: obj -> d
