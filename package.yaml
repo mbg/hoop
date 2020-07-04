@@ -1,0 +1,53 @@
+name:                hoop
+version:             0.3.0.0
+github:              mbg/hoop
+license:             MIT
+author:              Michael B. Gale
+maintainer:          m.gale@warwick.ac.uk
+copyright:           Copyright (c) Michael B. Gale
+
+extra-source-files:
+- README.md
+
+# Metadata used when publishing your package
+synopsis:            Object-Oriented Programming in Haskell
+category:            Language
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Library for object-oriented programming in Haskell.
+
+dependencies:
+- base >=4.7 && <5.0
+- template-haskell >= 2.9
+- haskell-src-exts >= 1.16
+- haskell-src-meta >= 0.6
+- parsec >=3.1.9
+- lens >=4.10
+- mtl >= 2.1
+- containers
+- text
+- pretty
+
+default-extensions:
+- TemplateHaskell
+- QuasiQuotes
+- RecordWildCards
+
+library:
+  source-dirs: src
+  ghc-options:
+  - -Wall
+
+tests:
+    hoop-test:
+        main: Spec.hs 
+        source-dirs: test
+        dependencies:
+        - hoop
+        - hspec 
+        ghc-options:         
+        - -threaded 
+        - -rtsopts 
+        - -with-rtsopts=-N
